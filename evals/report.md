@@ -3,7 +3,7 @@
 - backend: `mock`  
 - spec: `commitments`  
 - cases: 12  
-- generated: 2026-10-25 00:30:21
+- generated: 2026-10-25 00:33:01
 
 | arm | accuracy (all) | accuracy (answered) | coverage | wrong delivered | $/case | p95 latency |
 |---|---|---|---|---|---|---|
