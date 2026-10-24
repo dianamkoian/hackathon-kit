@@ -15,3 +15,6 @@ evals/report.json
 
 # os
 .DS_Store
+
+# звук создаётся командой scripts/make_audio_fixture.sh, в репозитории не хранится
+evals/audio/*.wav

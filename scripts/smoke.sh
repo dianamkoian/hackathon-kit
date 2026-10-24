@@ -3,6 +3,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+echo "== версия Python =="
+python3 -c "
+import sys
+if sys.version_info < (3, 10):
+    raise SystemExit(f'нужен Python 3.10+, а здесь {sys.version.split()[0]}')
+print('ok:', sys.version.split()[0])
+"
+
+echo
 echo "== eval (mock backend) =="
 python3 -m evals.run
 

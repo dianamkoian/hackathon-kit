@@ -80,6 +80,8 @@
 
 ## Запуск
 
+Нужен Python 3.10 или новее (проверить: `python3 --version`).
+
 ```bash
 pip install -r requirements.txt     # ядру ничего не нужно; это для API и реальных вызовов
 python3 -m evals.run                # mock-бэкенд: без ключа и без сети, но с настоящими числами
