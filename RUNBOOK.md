@@ -1,139 +1,143 @@
-# Runbook — 8 hours
+# Runbook — 8 часов
 
-Read this once before the start. It is written for the condition that decides
-everything: **a screening gate stands between you and the defence, and judges
-pass it by looking at the repository while you are still working.**
+Прочитать один раз до старта. Написано под условие, которое определяет всё
+остальное: **между вами и защитой стоит фильтр, и жюри проходит его, глядя на
+репозиторий, пока вы ещё работаете.**
 
-So the repository has to look like a winner before the project is finished.
-That inverts the normal order of work: the demo is not the last artefact, it is
-a continuously updated one. First recording goes in at hour 2, ugly and on a
-single case. Teams that build until hour 7 and then record something beautiful
-get filtered out before anyone sees it.
+Значит, репозиторий обязан выглядеть победным раньше, чем проект готов. Это
+переворачивает обычный порядок работы: демо — не финальный артефакт, а
+постоянно обновляемый. Первая запись кладётся на втором часу, уродливая и на
+одном кейсе. Команды, которые пилят до седьмого часа и только потом записывают
+что-то красивое, отсеиваются раньше, чем их кто-либо увидит.
 
-## Hour by hour
+## По часам
 
-| time | what | done means |
+| время | что | «готово» означает |
 |---|---|---|
-| 0:00–0:30 | Classify the theme, freeze scope, assign file zones | everyone can name the one thing being built and which files are theirs |
-| 0:30–1:30 | Vertical slice on ONE case, ugly, end to end | input → output happens in a terminal |
-| **1:30–2:00** | **First demo recording + README skeleton, committed** | **a stranger opening the repo sees a working thing** |
-| 2:00–3:30 | Real `domains/<theme>.py`: prompts, schema, router | the cascade runs on real input |
-| 3:30–4:30 | 20–30 eval cases + first real run | the comparison table has numbers in it |
-| 4:30–5:30 | Second demo recording, README with the table | the repo now argues for itself |
-| 5:30–6:30 | Integration surface, quality fixes the eval points at | curl works; the worst eval failure is addressed |
-| **6:30–7:00** | **FREEZE. No new features. Ever.** | nothing is half-finished |
-| 7:00–7:30 | Final recording, README polish, rehearse out loud | every claim on the page is one you can defend |
-| 7:30–8:00 | Buffer | things break here — that is what it is for |
+| 0:00–0:30 | Определить тип темы, заморозить объём, раздать зоны по файлам | каждый может назвать, что именно делается и какие файлы его |
+| 0:30–1:30 | Вертикальный срез на ОДНОМ кейсе, уродливый, насквозь | вход → выход происходит в терминале |
+| **1:30–2:00** | **Первая запись демо + скелет README, закоммичено** | **незнакомый человек, открыв репозиторий, видит работающую штуку** |
+| 2:00–3:30 | Настоящий `domains/<тема>.py`: промпты, схема, роутер | каскад работает на реальном входе |
+| 3:30–4:30 | 20–30 eval-кейсов и первый настоящий прогон | в таблице сравнения появились числа |
+| 4:30–5:30 | Вторая запись демо, README с таблицей | репозиторий теперь говорит сам за себя |
+| 5:30–6:30 | Интеграционная поверхность, починка того, на что указал eval | curl работает, худшая ошибка из eval закрыта |
+| **6:30–7:00** | **ЗАМОРОЗКА. Никаких новых фич. Совсем.** | ничего не осталось недоделанным |
+| 7:00–7:30 | Финальная запись, README, прогон речи вслух | каждое утверждение на странице вы можете защитить |
+| 7:30–8:00 | Буфер | здесь всё ломается — для этого он и нужен |
 
-The freeze is the hardest rule and the one that saves hackathons. Every feature
-started after hour 6:30 lands half-done and makes the repo look worse than
-stopping would have.
+Заморозка — самое трудное правило и то, которое спасает хакатоны. Любая фича,
+начатая после 6:30, приезжает наполовину и портит репозиторий сильнее, чем если
+бы вы просто остановились.
 
-## Theme types — decide this in the first 30 minutes
+## Тип темы — решается в первые 30 минут
 
-- **Agentic / LLM-shaped** (assistants, extraction, planning, routing): this kit
-  is the whole backbone. Rewrite `domains/`, keep everything else.
-- **Consumer-app-shaped** (feeds, matching, social): backend cleverness is
-  invisible and unscored. Take `web/`, drop the cascade, spend the time on a
-  demo that feels finished.
-- **Realtime-CV-shaped** (camera, gestures, pose): latency is visible to the
-  jury, so run in the browser and avoid the server round-trip entirely. This kit
-  contributes the README, the runbook and the repo hygiene, not the core.
+- **Агентная / LLM-образная** (ассистенты, извлечение, планирование,
+  маршрутизация): этот каркас — весь ваш бэкбон. Переписываете `domains/`,
+  остальное не трогаете.
+- **Потребительское приложение** (ленты, мэтчинг, социальное): хитрость бэкенда
+  не видна и не оценивается. Берёте `web/`, выбрасываете каскад, всё время
+  вкладываете в демо, которое выглядит законченным.
+- **Realtime-CV** (камера, жесты, поза): задержку жюри видит глазами, поэтому
+  считать надо в браузере и не ходить на сервер вообще. От каркаса здесь
+  остаются README, runbook и гигиена репозитория, а не ядро.
 
-Picking the wrong type costs more than any implementation mistake, and it cannot
-be fixed after hour 1.
+Ошибка в выборе типа стоит дороже любой ошибки в реализации, и после первого
+часа её уже не исправить.
 
-## Zones
+## Зоны
 
-Give every person files nobody else touches. The constraint is not skill, it is
-that two agents editing one file produce conflicts every ten minutes.
+У каждого — файлы, которые не трогает никто другой. Ограничение не про уровень
+людей, а про то, что два агента в одном файле дают конфликт каждые десять минут.
 
-| person | owns | never touches |
+| человек | владеет | не трогает |
 |---|---|---|
-| A — core | `core/`, `domains/<theme>.py` | `web/`, `README.md` |
-| B — quality | `evals/`, the verifier prompt | `core/pipeline.py`, `web/` |
-| C — product | `web/`, `api/`, `README.md`, recordings | `core/`, `evals/` |
-| D — integration (4+) | the outward surface, slides | `core/`, `domains/` |
+| A — ядро | `core/`, `domains/<тема>.py` | `web/`, `README.md` |
+| B — качество | `evals/`, промпт верификатора | `core/pipeline.py`, `web/` |
+| C — продукт | `web/`, `api/`, `README.md`, записи демо | `core/`, `evals/` |
+| D — интеграция (если 4+) | внешняя поверхность, слайды | `core/`, `domains/` |
 
-With two people: A takes core + domains, C takes everything else, and the eval
-set shrinks to 10 cases rather than being dropped — the table is the pitch.
+Если вас двое: A берёт ядро и домен, C — всё остальное, а eval сжимается до 10
+кейсов, но не выбрасывается — таблица и есть питч.
 
 ## Git
 
-Settle this before the start; it cannot be fixed afterwards.
+Договориться до старта; потом не чинится.
 
-- Everyone commits from their **own** account. `git config user.email` on every
-  machine, checked at hour 0. Commit history is the only objective evidence of
-  how work was divided, and that is a scored criterion.
-- Small commits. A single "final" commit at hour 8 looks like one person did
-  everything at the last minute, whether or not that is true.
-- `.env` is gitignored from the first commit. A key that reaches the history is
-  compromised even in a private repo — rotate it, do not try to delete it.
+- Каждый коммитит со **своего** аккаунта. `git config user.email` проверяется на
+  каждой машине на нулевом часу. История коммитов — единственное объективное
+  свидетельство того, как делилась работа, а это оценивается отдельно.
+- Маленькие коммиты. Один «финальный» коммит на восьмом часу выглядит так,
+  будто всё сделал один человек в последний момент, независимо от правды.
+- `.env` в `.gitignore` с первого коммита. Ключ, попавший в историю,
+  скомпрометирован даже в приватном репозитории: его ротируют, а не удаляют.
+- Клонировать по HTTPS, если на машине нет SSH-ключа.
 
-## When you are behind — cut in this order
+## Если не успеваете — режьте в этом порядке
 
-1. The second model tier (run everything on one model; the gates still work).
-2. The web UI (a CLI that prints the trace demos fine).
-3. Eval down to 10 cases (say the number out loud; a small honest set beats a
-   large invented one).
-4. The router (send everything to the strong tier).
+1. Второй тир модели (всё на одной модели; барьеры продолжают работать).
+2. Веб-интерфейс (CLI, печатающий трассировку, демонстрируется нормально).
+3. Eval до 10 кейсов (назовите число вслух; маленький честный набор лучше
+   большого выдуманного).
+4. Роутер (всё отправлять на сильный тир).
 
-**Never cut:** the demo recording, the comparison table, or abstention. Those
-three are what distinguish you from teams that also wrote prompts.
+**Никогда не режьте:** запись демо, таблицу сравнения и отказ. Эти три вещи и
+отличают вас от команд, которые тоже написали промпты.
 
-## Defence
+## Защита
 
-Rehearse answers to these. They get asked almost every time.
+Отрепетируйте ответы. Эти вопросы задают почти всегда.
 
-- **"Why not one big model with one prompt?"** — the table. This is why the eval
-  exists; without it you answer with adjectives and lose to a team with numbers.
-- **"Isn't this just prompts?"** — show the trace: a rejected answer, an
-  escalation, an abstention. Orchestration you cannot see scores zero.
-- **"How did you measure that?"** — open `evals/cases.jsonl`, say how many cases,
-  who labelled them, and what the grader counts as correct.
-- **"Can I try my own input?"** — have the demo accept live input. Teams that can
-  only replay a recorded script lose the room here.
-- **"Where does it break?"** — answer first, before they find it. Name the case
-  type you fail and what you would do with another day.
+- **«Почему не одна большая модель с одним промптом?»** — таблица. Ради этого и
+  существует eval: без него вы отвечаете прилагательными и проигрываете команде
+  с числами.
+- **«Это же просто промпты?»** — покажите трассировку: отклонённый ответ,
+  эскалацию, отказ. Оркестрация, которой не видно, стоит ноль баллов.
+- **«Как вы это измерили?»** — откройте `evals/cases.jsonl`, скажите, сколько
+  кейсов, кто размечал и что грейдер считает правильным ответом.
+- **«Можно я введу свой пример?»** — демо должно принимать живой ввод. Команды,
+  умеющие только проиграть записанный сценарий, здесь теряют зал.
+- **«Где это ломается?»** — отвечайте первыми, до того как найдут. Назовите тип
+  кейсов, на которых падаете, и что сделали бы за ещё один день.
 
-## Checklist, hour 7:30
+## Локальные модели на Apple Silicon
 
-- [ ] `pip install -r requirements.txt && python3 -m evals.run` works from a fresh clone
-- [ ] README table matches the latest run (no stale numbers)
-- [ ] Demo recording is current and under ~60 seconds
-- [ ] Every ⟨placeholder⟩ in the README is replaced
-- [ ] No `.env`, no keys anywhere in `git log -p`
-- [ ] Every team member has commits under their own name
-- [ ] Someone has said the whole pitch out loud, timed
-
-## Local models on Apple Silicon
-
-A local model is not a gimmick here — it is the cheap tier of the cascade with
-zero marginal cost and no rate limit. That turns the cost row of your table from
-a percentage into "the easy 70% of traffic costs nothing", which is a much
-harder claim to argue with. It is also demo insurance: the thing that kills live
-demos is the API — a quota, a key, the venue network.
+Локальная модель здесь не аттракцион, а дешёвый тир каскада с нулевой
+предельной стоимостью и без рейт-лимита. Строка цены в таблице превращается из
+процента в «лёгкие 70% трафика не стоят ничего» — с этим гораздо труднее
+спорить. Плюс это страховка демо: живые демо убивает API — квота, ключ, сеть
+площадки.
 
 ```bash
-python3 scripts/prefetch.py                      # what is cached, what is missing
-python3 scripts/prefetch.py --download llm asr   # fetch — the night before, at home
-python3 scripts/prefetch.py --verify             # load each one and actually run it
+python3 scripts/prefetch.py                      # что уже скачано, чего не хватает
+python3 scripts/prefetch.py --download llm asr   # качать дома, накануне
+python3 scripts/prefetch.py --verify             # загрузить каждую и реально прогнать
 
-LLM_BACKEND=mlx    python3 -m evals.run          # both tiers local
-LLM_BACKEND=hybrid python3 -m evals.run          # local cheap tier + API strong tier
+LLM_BACKEND=mlx    python3 -m evals.run          # оба тира локально
+LLM_BACKEND=hybrid python3 -m evals.run          # локальный дешёвый + API на сильном
 ```
 
-Three rules, learned the expensive way:
+Три правила, выученных дорого:
 
-1. **Download at home.** Venue wi-fi is shared by every team in the room. A 5 GB
-   pull at 09:00 does not finish.
-2. **Verify before, not during.** `--verify` loads each model and runs it. A
-   model that downloaded but does not load is worse than one you never had,
-   because you will discover it at hour three.
-3. **Size for the machine.** On 24 GB of unified memory a 4-bit 7–8B model
-   (~4.5 GB) runs comfortably beside a browser and an IDE. A 1.5B model is fast
-   but follows a JSON schema poorly — fine for routing, weak for extraction.
+1. **Качать дома.** Wi-Fi площадки делят все команды в зале. Пять гигабайт в
+   девять утра не докачаются.
+2. **Проверять заранее, а не в процессе.** `--verify` загружает модель и
+   прогоняет её. Модель, которая скачалась, но не загружается, хуже той,
+   которой нет: вы узнаете об этом на третьем часу.
+3. **Подбирать размер под машину.** На 24 ГБ объединённой памяти
+   четырёхбитная модель на 7–8B (~4.5 ГБ) живёт спокойно рядом с браузером и
+   IDE. Модель на 1.5B быстрая, но схему держит плохо — годится для
+   маршрутизации, слаба для извлечения.
 
-Ask the organizers whether local models are allowed. They almost always are, but
-if the rules mandate a specific API, the cascade still works: the local tier is
-a backend swap in `core/providers.py`, not an architecture change.
+Спросите организаторов, можно ли локальные модели. Почти всегда можно, но если
+правила навязывают конкретный API, каскад от этого не рушится: локальный тир —
+это подмена бэкенда в `core/providers.py`, а не смена архитектуры.
+
+## Чеклист, 7:30
+
+- [ ] `pip install -r requirements.txt && python3 -m evals.run` работает из свежего клона
+- [ ] Таблица в README совпадает с последним прогоном (никаких устаревших чисел)
+- [ ] Запись демо актуальная и короче ~60 секунд
+- [ ] Все ⟨подстановки⟩ в README заменены
+- [ ] Нет `.env`, нет ключей нигде в `git log -p`
+- [ ] У каждого участника есть коммиты под своим именем
+- [ ] Кто-то проговорил весь питч вслух, по таймеру

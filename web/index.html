@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cascade Demo</title>
+<title>Демо каскада</title>
 <style>
   :root {
     --bg: #fbfbfa; --panel: #fff; --ink: #1a1a19; --muted: #6b6b68;
@@ -65,31 +65,31 @@
 </head>
 <body>
 <main>
-  <h1>Cascade Demo</h1>
-  <p class="sub">Every node, its model, its cost and its verdict. Replace the
-     domain, keep the view.</p>
+  <h1>Демо каскада</h1>
+  <p class="sub">Каждый узел, его модель, его стоимость и его вердикт.
+     Меняется тема — вид остаётся.</p>
 
   <div class="panel">
     <textarea id="text" spellcheck="false"></textarea>
     <div class="row">
-      <button class="primary" id="go">Run</button>
+      <button class="primary" id="go">Запустить</button>
       <select id="arm">
-        <option value="cascade">cascade</option>
-        <option value="baseline">baseline (one call, no gates)</option>
+        <option value="cascade">каскад</option>
+        <option value="baseline">baseline (один вызов, без барьеров)</option>
       </select>
-      <select id="samples"><option value="">sample transcript…</option></select>
+      <select id="samples"><option value="">пример расшифровки…</option></select>
       <span class="muted" id="backend"></span>
     </div>
   </div>
 
   <div class="panel" id="out" hidden>
-    <h2>Result</h2>
+    <h2>Результат</h2>
     <p><span class="badge" id="status"></span> <span class="muted" id="why"></span></p>
     <pre id="data"></pre>
-    <h2 style="margin-top:18px">Trace</h2>
+    <h2 style="margin-top:18px">Трассировка</h2>
     <table>
-      <thead><tr><th>node</th><th>model</th><th></th><th class="num">cost</th>
-                 <th class="num">ms</th><th>detail</th></tr></thead>
+      <thead><tr><th>узел</th><th>модель</th><th></th><th class="num">цена</th>
+                 <th class="num">мс</th><th>подробности</th></tr></thead>
       <tbody id="trace"></tbody>
     </table>
     <p class="totals" id="totals"></p>
@@ -103,7 +103,7 @@ async function boot() {
   try {
     const health = await (await fetch("/healthz")).json();
     $("backend").textContent =
-      `backend: ${health.backend} · floor: ${health.confidence_floor}`;
+      `бэкенд: ${health.backend} · порог: ${health.confidence_floor}`;
     const samples = await (await fetch("/samples")).json();
     for (const s of samples) {
       const opt = document.createElement("option");
@@ -113,7 +113,7 @@ async function boot() {
     }
     if (samples.length) $("text").value = samples[0].text;
   } catch (err) {
-    $("backend").textContent = "API unreachable — is uvicorn running?";
+    $("backend").textContent = "API недоступен — uvicorn запущен?";
   }
 }
 
@@ -124,7 +124,7 @@ $("samples").addEventListener("change", (e) => {
 $("go").addEventListener("click", async () => {
   const btn = $("go");
   btn.disabled = true;
-  btn.textContent = "Running…";
+  btn.textContent = "Считаю…";
   try {
     const res = await fetch("/run", {
       method: "POST",
@@ -136,7 +136,7 @@ $("go").addEventListener("click", async () => {
     render(body);
   } catch (err) {
     $("out").hidden = false;
-    $("status").textContent = "error";
+    $("status").textContent = "ошибка";
     $("status").className = "badge s-abstained";
     $("why").textContent = err.message;
     $("data").textContent = "";
@@ -144,7 +144,7 @@ $("go").addEventListener("click", async () => {
     $("totals").textContent = "";
   } finally {
     btn.disabled = false;
-    btn.textContent = "Run";
+    btn.textContent = "Запустить";
   }
 });
 
@@ -155,7 +155,7 @@ function render(body) {
   $("why").textContent = body.reason || "";
   $("data").textContent = body.data
     ? JSON.stringify(body.data, null, 2)
-    : "— no answer delivered —";
+    : "— ответ не выдан —";
 
   const rows = body.trace.steps.map((s) => {
     const tr = document.createElement("tr");
@@ -175,9 +175,9 @@ function render(body) {
   $("trace").replaceChildren(...rows);
   const t = body.trace;
   $("totals").textContent =
-    `${t.steps.length} steps · $${t.cost_usd.toFixed(5)} · ` +
-    `${t.model_latency_ms.toFixed(0)} ms in model calls · ` +
-    `models: ${t.models_used.join(", ") || "none"}`;
+    `узлов: ${t.steps.length} · $${t.cost_usd.toFixed(5)} · ` +
+    `${t.model_latency_ms.toFixed(0)} мс в вызовах моделей · ` +
+    `модели: ${t.models_used.join(", ") || "нет"}`;
 }
 
 boot();

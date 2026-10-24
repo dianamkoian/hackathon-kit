@@ -87,16 +87,22 @@ class ArmStats:
         }
 
 
+# Output is Russian because the README pastes this table verbatim and a jury
+# reads it. Identifiers and the --arm flag stay English.
+DISPLAY = {"baseline": "baseline", "cascade": "каскад"}
+
+
 def _table(arms: list[ArmStats]) -> str:
     head = (
-        "| arm | accuracy (all) | accuracy (answered) | coverage | "
-        "wrong delivered | $/case | p95 latency |\n"
+        "| вариант | точность (всего) | точность (где ответил) | покрытие | "
+        "неверных выдано | $/кейс | p95 |\n"
         "|---|---|---|---|---|---|---|"
     )
     rows = [
-        f"| {a.name} | {a.accuracy:.1%} | {a.accuracy_answered:.1%} | {a.coverage:.1%} | "
+        f"| {DISPLAY.get(a.name, a.name)} | {a.accuracy:.1%} | {a.accuracy_answered:.1%} | "
+        f"{a.coverage:.1%} | "
         f"{a.wrong_delivered} | ${a.cost / a.n if a.n else 0:.5f} | "
-        f"{percentile(a.latencies, 0.95):.0f} ms |"
+        f"{percentile(a.latencies, 0.95):.0f} мс |"
         for a in arms
     ]
     return "\n".join([head, *rows])
@@ -171,8 +177,9 @@ def main() -> int:
     print(table)
     print()
     if len(cases) < 20:
-        print(f"note: {len(cases)} cases — p95 is effectively the slowest case here. "
-              "Scale to 20-30 before quoting it at judges.")
+        print(f"внимание: кейсов всего {len(cases)} — p95 здесь фактически равен "
+              "самому медленному кейсу. Доведите до 20-30, прежде чем называть "
+              "это число жюри.")
 
     if "cascade" in arms and "baseline" in arms:
         b, c = arms["baseline"], arms["cascade"]
@@ -181,11 +188,12 @@ def main() -> int:
             percentile(c.latencies, 0.95) / percentile(b.latencies, 0.95) - 1
             if percentile(b.latencies, 0.95) else 0.0
         )
-        print(f"cascade vs baseline: wrong answers {b.wrong_delivered} -> {c.wrong_delivered}, "
-              f"cost {cost_change:+.0%}, p95 latency {latency_change:+.0%}, "
-              f"abstentions {c.n - c.answered}/{c.n}")
+        print(f"каскад против baseline: неверных ответов "
+              f"{b.wrong_delivered} -> {c.wrong_delivered}, "
+              f"стоимость {cost_change:+.0%}, p95 {latency_change:+.0%}, "
+              f"отказов {c.n - c.answered}/{c.n}")
 
-    print("\nper case:")
+    print("\nпо кейсам:")
     for row in per_case:
         bits = [f"{row['id']} ({row['difficulty']:<9})"]
         for name in arms:
@@ -193,7 +201,7 @@ def main() -> int:
             mark = "+" if cell["correct"] else ("." if cell["status"] == "abstained" else "x")
             bits.append(f"{name}:{mark}{cell['status']:<10}")
         print("  " + "  ".join(bits))
-    print("\n  + correct   x wrong answer delivered   . abstained")
+    print("\n  + верно   x выдан неверный ответ   . отказ")
 
     report = {
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -208,12 +216,12 @@ def main() -> int:
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (REPORT_DIR / "report.md").write_text(
-        f"# Eval report\n\n"
-        f"- backend: `{provider.name}`  \n- spec: `{SPEC.name}`  \n"
-        f"- cases: {len(cases)}  \n- generated: {report['generated_at']}\n\n"
+        f"# Отчёт eval\n\n"
+        f"- бэкенд: `{provider.name}`  \n- спека: `{SPEC.name}`  \n"
+        f"- кейсов: {len(cases)}  \n- сгенерировано: {report['generated_at']}\n\n"
         f"{table}\n\n"
-        f"Headline: wrong answers delivered went from "
-        f"{arms['baseline'].wrong_delivered if 'baseline' in arms else '-'} to "
+        f"Главное: неверных ответов выдано "
+        f"{arms['baseline'].wrong_delivered if 'baseline' in arms else '-'} -> "
         f"{arms['cascade'].wrong_delivered if 'cascade' in arms else '-'}.\n",
         encoding="utf-8",
     )

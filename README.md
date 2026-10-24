@@ -1,129 +1,133 @@
-# ⟨PROJECT NAME⟩
+# ⟨НАЗВАНИЕ ПРОЕКТА⟩
 
-> **This README is the pitch.** Judges read repositories; most of them never run
-> one. Everything that earns points has to be visible on this page: what it
-> does, how it is built, and the numbers that back the claim. Replace every
-> ⟨placeholder⟩ and delete this block before the defence.
+> **Этот README — и есть питч.** Жюри читает репозитории, а запускает их почти
+> никогда. Всё, за что дают баллы, должно быть видно прямо на этой странице:
+> что система делает, как устроена и какими числами подтверждается. Замените
+> все ⟨подстановки⟩ и удалите эту врезку перед защитой.
 
-⟨One sentence: who has the problem, and what this does about it.⟩
+⟨Одно предложение: у кого проблема и что система с ней делает.⟩
 
-![demo](docs/demo.gif) <!-- record this in hour 2, not hour 7 -->
+![демо](docs/demo.gif) <!-- записать на втором часу, а не на седьмом -->
 
-## The 30-second version
+## Коротко
 
-⟨Problem in one sentence.⟩ A single large model answering every request is the
-obvious approach; it is expensive on the easy majority and confidently wrong on
-the hard minority. This routes by difficulty, verifies before answering, and
-declines when neither tier convinces the verifier.
+⟨Проблема в одном предложении.⟩ Очевидный подход — одна большая модель на все
+запросы: она дорога на лёгком большинстве и уверенно ошибается на трудном
+меньшинстве. Здесь запросы маршрутизируются по сложности, ответ проверяется до
+выдачи, а если ни один уровень не убедил верификатор — система отказывается
+отвечать.
 
-| arm | accuracy (all) | accuracy (answered) | coverage | wrong delivered | $/case | p95 latency |
+| вариант | точность (всего) | точность (где ответил) | покрытие | неверных выдано | $/кейс | p95 |
 |---|---|---|---|---|---|---|
-| baseline | 83.3% | 83.3% | 100.0% | 2 | $0.00198 | 1400 ms |
-| cascade | 83.3% | 90.9% | 91.7% | 1 | $0.00105 | 2300 ms |
+| baseline | 83.3% | 83.3% | 100.0% | 2 | $0.00198 | 1400 мс |
+| каскад | 83.3% | 90.9% | 91.7% | 1 | $0.00105 | 2300 мс |
 
-<!-- Regenerate with `python3 -m evals.run` and paste evals/report.md here.
-     The row above is from the shipped example domain on the mock backend. -->
+<!-- Пересобрать: `python3 -m evals.run`, затем вставить сюда evals/report.md.
+     Строки выше — встроенный пример на mock-бэкенде. -->
 
-**Read the table honestly, and say this out loud before a judge says it for you:**
-overall accuracy did not move. What moved is the number of wrong answers
-delivered, which halved, at 47% lower cost — and the price was 64% higher tail
-latency and one case in twelve left unanswered. That is the trade, and naming
-it yourself is worth more than a number that looks too good.
+**Читайте таблицу честно и скажите это вслух раньше, чем скажет жюри:** общая
+точность не изменилась. Изменилось другое — вдвое меньше выданных неверных
+ответов при вдвое меньшей стоимости. Цена: +64% к хвостовой задержке и один
+кейс из двенадцати остался без ответа. Это размен, и назвать его самим стоит
+дороже, чем показать слишком красивое число.
 
-## How it works
+## Как устроено
 
 ```
             ┌───────────┐
-  input ───▶│   route   │  cheap string/heuristic scan, no model call
+   вход ───▶│   route   │  дешёвая эвристика, без вызова модели
             └─────┬─────┘
-                  │  easy ──▶ cheap tier          hard ──▶ strong tier
+                  │  легко ──▶ дешёвый тир      трудно ──▶ сильный тир
                   ▼
             ┌───────────┐
-            │   solve   │  structured output, schema-validated,
-            └─────┬─────┘  retried with the validation error in the prompt
+            │   solve   │  структурный вывод, проверка по схеме,
+            └─────┬─────┘  ретрай с текстом ошибки прямо в промпте
                   ▼
             ┌───────────┐
-            │  ground   │  every quote must appear verbatim in the source.
-            └─────┬─────┘  mechanical, free, catches invented evidence
+            │  ground   │  каждая цитата обязана дословно быть в источнике.
+            └─────┬─────┘  механически, бесплатно, ловит выдуманные улики
                   ▼
             ┌───────────┐
-            │  verify   │  separate prompt, cheap tier — judging is easier
-            └─────┬─────┘  than generating, so don't pay generator prices
+            │  verify   │  отдельный промпт, дешёвый тир: проверять проще,
+            └─────┬─────┘  чем порождать, незачем платить как за генерацию
                   ▼
             ┌───────────┐
-            │   gate    │  pass AND confidence ≥ floor?
+            │   gate    │  вердикт «pass» И уверенность ≥ порога?
             └─────┬─────┘
           ┌───────┴────────┬──────────────────┐
           ▼                ▼                  ▼
-       answer      escalate to strong      abstain
-                   (retry the whole        (say so, don't guess)
-                    chain once)
+        ответ      эскалация на сильный     отказ
+                   (вся цепочка заново)     (сказать прямо, не угадывать)
 ```
 
-Four quality gates, in increasing order of cost:
+Четыре барьера качества, в порядке возрастания цены:
 
-1. **Schema validation** — invalid output is re-asked with the specific error,
-   not a generic "try again".
-2. **Quote grounding** — a claimed quote either appears in the source or it does
-   not. No model, no cost, and it catches fabricated evidence outright, which is
-   the failure a verifier model is worst at spotting.
-3. **Model verifier** — a different prompt on the cheap tier. Self-verification
-   with the same prompt mostly reproduces the original error.
-4. **Abstention** — below the confidence floor the system declines. ⟨Say what
-   happens then in your product: escalate to a human, ask a follow-up, flag it.⟩
+1. **Проверка схемы** — невалидный ответ переспрашивается с конкретной ошибкой,
+   а не с общим «попробуй ещё раз». Модель чинит поле, а не перегенерирует всё.
+2. **Проверка цитат** — заявленная цитата либо есть в источнике дословно, либо
+   её нет. Без модели, бесплатно, и ловит выдуманные улики: именно это хуже
+   всего замечает верификатор-модель, потому что верит цитате так же охотно,
+   как и та, что её выдумала.
+3. **Верификатор** — другой промпт на дешёвом тире. Самопроверка тем же
+   промптом в основном воспроизводит исходную ошибку.
+4. **Отказ** — ниже порога уверенности система не отвечает. ⟨Опишите, что
+   происходит дальше в вашем продукте: эскалация человеку, уточняющий вопрос,
+   пометка на ручную проверку.⟩
 
-## Run it
+## Запуск
 
 ```bash
-pip install -r requirements.txt     # core needs nothing; this is for the API and real calls
-python3 -m evals.run                # mock backend: no key, no network, real numbers
-uvicorn api.server:app --port 8000  # demo UI + API at http://localhost:8000
+pip install -r requirements.txt     # ядру ничего не нужно; это для API и реальных вызовов
+python3 -m evals.run                # mock-бэкенд: без ключа и без сети, но с настоящими числами
+uvicorn api.server:app --port 8000  # демо и API на http://localhost:8000
 ```
 
-Switch backends by copying `.env.example` to `.env` and setting `LLM_BACKEND`:
+Бэкенд переключается через `.env` (скопируйте из `.env.example`), переменная
+`LLM_BACKEND`:
 
-| value | what runs | needs |
+| значение | что работает | что нужно |
 |---|---|---|
-| `mock` | deterministic fixtures | nothing — this is the default |
-| `anthropic` | API models on both tiers | `ANTHROPIC_API_KEY` |
-| `mlx` | local models on both tiers (Apple Silicon) | `pip install mlx-lm` + weights |
-| `hybrid` | local cheap tier, API strong tier | both of the above |
+| `mock` | детерминированные фикстуры | ничего, это значение по умолчанию |
+| `anthropic` | API-модели на обоих тирах | `ANTHROPIC_API_KEY` |
+| `mlx` | локальные модели на обоих тирах (Apple Silicon) | `pip install mlx-lm` + веса |
+| `hybrid` | локальный дешёвый тир, API на сильном | оба пункта выше |
 
-`hybrid` is the arrangement worth showing a jury: the easy majority costs
-nothing, and only escalations reach a paid model. See `RUNBOOK.md` for
-pre-downloading the weights — do that at home, not at the venue.
+`hybrid` — та конфигурация, которую стоит показывать жюри: лёгкое большинство
+запросов не стоит ничего, платная модель включается только на эскалациях. Про
+предзагрузку весов см. `RUNBOOK.md` — качать дома, не на площадке.
 
-## Integrate it
+## Интеграция
 
 ```bash
 curl -s localhost:8000/run -H 'content-type: application/json' \
-  -d '{"text": "Timur: I'\''ll deploy the hotfix tonight."}' | python3 -m json.tool
+  -d '{"text": "Тимур: выкачу хотфикс сегодня вечером."}' | python3 -m json.tool
 ```
 
-Returns the answer, the confidence, and the full trace — every node, the model
-it used, what it cost and what it decided.
+Возвращается ответ, уверенность и полная трассировка: каждый узел, его модель,
+во что он обошёлся и что решил.
 
-## Layout
+## Структура и зоны
 
-| path | what lives there | owner |
+| путь | что внутри | владелец |
 |---|---|---|
-| `core/` | provider adapter, cascade, gates, trace — domain-independent | ⟨name⟩ |
-| `domains/` | **the only file the theme changes**: prompts, schema, router, grader | ⟨name⟩ |
-| `evals/` | cases and the harness that produces the table above | ⟨name⟩ |
-| `api/`, `web/` | HTTP surface and the demo page | ⟨name⟩ |
+| `core/` | адаптер провайдера, каскад, барьеры, трассировка — не зависит от темы | ⟨имя⟩ |
+| `domains/` | **единственный файл, который меняет тема**: промпты, схема, роутер, грейдер | ⟨имя⟩ |
+| `evals/` | кейсы и харнесс, который делает таблицу выше | ⟨имя⟩ |
+| `api/`, `web/` | HTTP-поверхность и демо-страница | ⟨имя⟩ |
 
-One owner per row, enforced by not editing other people's rows. With several
-people driving agents at once, merge conflicts come from two agents touching one
-file, not from the work being hard.
+Один владелец на строку, и чужие строки не трогают. Когда несколько человек
+одновременно работают с агентами, мерж-конфликты берутся не из сложности
+задачи, а из того, что два агента правят один файл.
 
-## Honest limits
+## Честные ограничения
 
-⟨Fill these in. Naming your own weaknesses before the jury finds them reads as
-competence; being caught hiding one reads as the opposite.⟩
+⟨Заполните. Назвать свои слабые места раньше жюри — признак зрелости; быть
+пойманным на сокрытии — ровно наоборот.⟩
 
-- The shipped numbers come from a mock backend with 12 fixtures. ⟨Replace with
-  your real run and say how many cases.⟩
-- The grader is exact-match on ⟨fields⟩, which is only fair because ⟨reason⟩.
-- The verifier runs on the cheap tier: it waves through ⟨N⟩ wrong answer(s) in
-  the eval. A strong-tier verifier catches more and erases the cost advantage.
-- ⟨Where it breaks: input types, languages, lengths you did not handle.⟩
+- Числа выше получены на mock-бэкенде на 12 фикстурах. ⟨Замените на свой прогон
+  и укажите, сколько у вас кейсов.⟩
+- Грейдер сравнивает точным совпадением по ⟨поля⟩, и это честно только потому,
+  что ⟨причина⟩.
+- Верификатор работает на дешёвом тире: в eval он пропускает ⟨N⟩ неверных
+  ответов. Верификатор на сильном тире ловит больше, но съедает выигрыш в цене.
+- ⟨Где ломается: типы входа, языки, длины, которые вы не обработали.⟩

@@ -1,13 +1,13 @@
-# Eval report
+# Отчёт eval
 
-- backend: `mock`  
-- spec: `commitments`  
-- cases: 12  
-- generated: 2026-10-25 00:33:01
+- бэкенд: `mock`  
+- спека: `commitments`  
+- кейсов: 12  
+- сгенерировано: 2026-10-25 00:37:46
 
-| arm | accuracy (all) | accuracy (answered) | coverage | wrong delivered | $/case | p95 latency |
+| вариант | точность (всего) | точность (где ответил) | покрытие | неверных выдано | $/кейс | p95 |
 |---|---|---|---|---|---|---|
-| baseline | 83.3% | 83.3% | 100.0% | 2 | $0.00198 | 1400 ms |
-| cascade | 83.3% | 90.9% | 91.7% | 1 | $0.00105 | 2300 ms |
+| baseline | 83.3% | 83.3% | 100.0% | 2 | $0.00198 | 1400 мс |
+| каскад | 83.3% | 90.9% | 91.7% | 1 | $0.00105 | 2300 мс |
 
-Headline: wrong answers delivered went from 2 to 1.
+Главное: неверных ответов выдано 2 -> 1.
