@@ -135,6 +135,7 @@ LLM_BACKEND=hybrid python3 -m evals.run          # локальный дешёв
 ## Чеклист, 7:30
 
 - [ ] `pip install -r requirements.txt && python3 -m evals.run` работает из свежего клона
+- [ ] `LLM_BACKEND=<ваш> python3 scripts/check_backend.py` проходит на обоих тирах
 - [ ] Таблица в README совпадает с последним прогоном (никаких устаревших чисел)
 - [ ] Запись демо актуальная и короче ~60 секунд
 - [ ] Все ⟨подстановки⟩ в README заменены

@@ -1,4 +1,11 @@
-# Core needs nothing but the stdlib — the mock backend runs with zero installs.
-anthropic>=1.0        # only for LLM_BACKEND=anthropic
-fastapi>=0.115        # only for the demo API
-uvicorn>=0.30         # only for the demo API
+# Ядру не нужно ничего, кроме стандартной библиотеки: mock-бэкенд и eval
+# работают на чистом Python. Всё ниже — для отдельных возможностей.
+#
+# Версии зафиксированы намеренно. На четырёх машинах незакреплённые границы
+# дают четыре разных окружения, и разбираться с этим приходится в тот час,
+# когда надо писать код.
+
+fastapi~=0.119.1      # только для демо-API
+uvicorn~=0.33.0       # только для демо-API
+anthropic~=1.0        # только для LLM_BACKEND=anthropic
+mlx-lm~=0.31.3        # только для LLM_BACKEND=mlx или hybrid (Apple Silicon)
