@@ -23,7 +23,10 @@ print('api ok:', body['status'], '|', len(body['trace']['steps']), 'trace steps'
 
 echo
 echo "== no secrets committed =="
-if git log -p --all 2>/dev/null | grep -nE '(ANTHROPIC_API_KEY=.+|sk-ant-[A-Za-z0-9]|gh[pousr]_[A-Za-z0-9]{20,})' >/dev/null; then
+# Exclude this file: it contains the pattern it searches for, so without the
+# exclusion the scanner always finds itself and reports a secret that is not there.
+if git log -p --all -- ':(exclude)scripts/smoke.sh' 2>/dev/null \
+   | grep -nE '(ANTHROPIC_API_KEY=.+|sk-ant-[A-Za-z0-9]|gh[pousr]_[A-Za-z0-9]{20,})' >/dev/null; then
   echo "FAIL: something key-shaped is in the git history. Rotate it, do not just delete it."
   exit 1
 fi
