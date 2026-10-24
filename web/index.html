@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cascade Demo</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --panel: #fff; --ink: #1a1a19; --muted: #6b6b68;
+    --line: #e4e4e1; --accent: #2b5fd9; --ok: #157f4a; --warn: #9a6600; --bad: #b3261e;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181a; --panel: #1f2023; --ink: #ececeb; --muted: #9a9a97;
+      --line: #32343a; --accent: #7aa2ff; --ok: #4cc38a; --warn: #e3b341; --bad: #ff6b60;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px; margin-bottom: 16px;
+  }
+  textarea {
+    width: 100%; min-height: 110px; resize: vertical; padding: 10px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font: 13px/1.5 var(--mono);
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  button {
+    font: inherit; padding: 7px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .55; cursor: default; }
+  select { font: inherit; padding: 6px; border-radius: 7px;
+           border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; border: 1px solid currentColor;
+  }
+  .s-ok { color: var(--ok); } .s-escalated { color: var(--warn); } .s-abstained { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase;
+       letter-spacing: .03em; }
+  td.num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .mark-ok { color: var(--ok); } .mark-bad { color: var(--bad); }
+  pre { margin: 0; padding: 10px; overflow-x: auto; background: var(--bg);
+        border: 1px solid var(--line); border-radius: 8px;
+        font: 12px/1.5 var(--mono); }
+  .totals { color: var(--muted); font-size: 13px; margin-top: 10px; font-family: var(--mono); }
+  .muted { color: var(--muted); font-size: 13px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+       color: var(--muted); margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Cascade Demo</h1>
+  <p class="sub">Every node, its model, its cost and its verdict. Replace the
+     domain, keep the view.</p>
+
+  <div class="panel">
+    <textarea id="text" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="go">Run</button>
+      <select id="arm">
+        <option value="cascade">cascade</option>
+        <option value="baseline">baseline (one call, no gates)</option>
+      </select>
+      <select id="samples"><option value="">sample transcript…</option></select>
+      <span class="muted" id="backend"></span>
+    </div>
+  </div>
+
+  <div class="panel" id="out" hidden>
+    <h2>Result</h2>
+    <p><span class="badge" id="status"></span> <span class="muted" id="why"></span></p>
+    <pre id="data"></pre>
+    <h2 style="margin-top:18px">Trace</h2>
+    <table>
+      <thead><tr><th>node</th><th>model</th><th></th><th class="num">cost</th>
+                 <th class="num">ms</th><th>detail</th></tr></thead>
+      <tbody id="trace"></tbody>
+    </table>
+    <p class="totals" id="totals"></p>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function boot() {
+  try {
+    const health = await (await fetch("/healthz")).json();
+    $("backend").textContent =
+      `backend: ${health.backend} · floor: ${health.confidence_floor}`;
+    const samples = await (await fetch("/samples")).json();
+    for (const s of samples) {
+      const opt = document.createElement("option");
+      opt.value = s.text;
+      opt.textContent = `${s.id} (${s.difficulty})`;
+      $("samples").append(opt);
+    }
+    if (samples.length) $("text").value = samples[0].text;
+  } catch (err) {
+    $("backend").textContent = "API unreachable — is uvicorn running?";
+  }
+}
+
+$("samples").addEventListener("change", (e) => {
+  if (e.target.value) $("text").value = e.target.value;
+});
+
+$("go").addEventListener("click", async () => {
+  const btn = $("go");
+  btn.disabled = true;
+  btn.textContent = "Running…";
+  try {
+    const res = await fetch("/run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: $("text").value, arm: $("arm").value }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || res.statusText);
+    render(body);
+  } catch (err) {
+    $("out").hidden = false;
+    $("status").textContent = "error";
+    $("status").className = "badge s-abstained";
+    $("why").textContent = err.message;
+    $("data").textContent = "";
+    $("trace").innerHTML = "";
+    $("totals").textContent = "";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Run";
+  }
+});
+
+function render(body) {
+  $("out").hidden = false;
+  $("status").textContent = body.status;
+  $("status").className = "badge s-" + body.status;
+  $("why").textContent = body.reason || "";
+  $("data").textContent = body.data
+    ? JSON.stringify(body.data, null, 2)
+    : "— no answer delivered —";
+
+  const rows = body.trace.steps.map((s) => {
+    const tr = document.createElement("tr");
+    const cells = [
+      s.node,
+      s.model || "—",
+      `<span class="${s.ok ? "mark-ok" : "mark-bad"}">${s.ok ? "✓" : "✕"}</span>`,
+      s.cost_usd ? `$${s.cost_usd.toFixed(5)}` : "—",
+      s.latency_ms ? s.latency_ms.toFixed(0) : "—",
+      s.detail || "",
+    ];
+    tr.innerHTML = cells
+      .map((c, i) => `<td${i === 3 || i === 4 ? ' class="num"' : ""}>${c}</td>`)
+      .join("");
+    return tr;
+  });
+  $("trace").replaceChildren(...rows);
+  const t = body.trace;
+  $("totals").textContent =
+    `${t.steps.length} steps · $${t.cost_usd.toFixed(5)} · ` +
+    `${t.model_latency_ms.toFixed(0)} ms in model calls · ` +
+    `models: ${t.models_used.join(", ") || "none"}`;
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Core needs nothing but the stdlib — the mock backend runs with zero installs.
+anthropic>=1.0        # only for LLM_BACKEND=anthropic
+fastapi>=0.115        # only for the demo API
+uvicorn>=0.30         # only for the demo API

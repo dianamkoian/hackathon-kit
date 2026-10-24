@@ -1,0 +1,17 @@
+# secrets — never commit these
+.env
+.env.local
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# eval output (regenerate with `python3 -m evals.run`)
+evals/report.json
+
+# os
+.DS_Store
