@@ -29,6 +29,7 @@ class Entry:
     gb: float  # approximate on-disk size; check before trusting a disk budget
     why: str
     kind: str  # mlx-llm | mlx-asr | embed | plain
+    priority: int = 5  # 1 = fetch first. On a weak link you may not get them all.
 
 
 REGISTRY: list[Entry] = [
@@ -36,27 +37,27 @@ REGISTRY: list[Entry] = [
     # is the smallest size that holds structured output reliably, and still fits
     # alongside a browser and an IDE in 24 GB of unified memory.
     Entry("llm", "mlx-community/Qwen2.5-1.5B-Instruct-4bit", 0.9,
-          "fastest local tier; fine for routing and classification", "mlx-llm"),
+          "fastest local tier; fine for routing and classification", "mlx-llm", 1),
     Entry("llm", "mlx-community/Qwen3-4B-4bit", 2.3,
-          "good balance when 7B is too slow for a live demo", "mlx-llm"),
+          "good balance when 7B is too slow for a live demo", "mlx-llm", 4),
     Entry("llm", "mlx-community/Qwen2.5-7B-Instruct-4bit", 4.3,
-          "smallest local model that follows a JSON schema dependably", "mlx-llm"),
+          "smallest local model that follows a JSON schema dependably", "mlx-llm", 2),
     Entry("llm", "mlx-community/Qwen3-8B-4bit", 4.7,
-          "stronger local extractor; slower per token", "mlx-llm"),
+          "stronger local extractor; slower per token", "mlx-llm", 5),
 
     # Any theme with meetings, calls, voice notes or video starts here.
     Entry("asr", "mlx-community/whisper-small-mlx", 0.5,
-          "fast transcription; good enough for a demo", "mlx-asr"),
+          "fast transcription; good enough for a demo", "mlx-asr", 1),
     Entry("asr", "mlx-community/whisper-large-v3-turbo", 1.6,
-          "accurate transcription, still real-time on M-series", "mlx-asr"),
+          "accurate transcription, still real-time on M-series", "mlx-asr", 3),
 
     # Semantic search, dedup, clustering, routing by similarity, RAG.
     Entry("embed", "intfloat/multilingual-e5-base", 1.1,
-          "multilingual embeddings; the workhorse of any retrieval feature", "embed"),
+          "multilingual embeddings; the workhorse of any retrieval feature", "embed", 2),
     Entry("embed", "BAAI/bge-m3", 2.3,
-          "stronger multilingual embeddings, long inputs", "embed"),
+          "stronger multilingual embeddings, long inputs", "embed", 4),
     Entry("embed", "BAAI/bge-reranker-v2-m3", 2.3,
-          "reranker — the cheapest large win in RAG quality", "plain"),
+          "reranker — the cheapest large win in RAG quality", "plain", 4),
 ]
 
 
@@ -92,18 +93,42 @@ def cmd_status(entries: list[Entry]) -> int:
     return 0
 
 
-def cmd_download(entries: list[Entry]) -> int:
+def cmd_download(entries: list[Entry], attempts: int = 8) -> int:
+    """Fetch in priority order, retrying each model until it lands.
+
+    Two things this works around, both seen on venue-grade wi-fi: a transfer
+    that stalls forever without failing, and a connection that drops mid-file.
+    A short read timeout turns the first into an error, and the retry loop
+    turns the error into a resumed download — nothing already on disk is
+    re-fetched.
+    """
+    import os
+
+    os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "20")
     from huggingface_hub import snapshot_download
 
-    for e in entries:
+    failed = 0
+    for e in sorted(entries, key=lambda x: (x.priority, x.gb)):
         if is_cached(e.repo):
-            print(f"[cached] {e.repo}")
+            print(f"[есть  ] {e.repo}", flush=True)
             continue
-        print(f"[fetch ] {e.repo} (~{e.gb:.1f} GB)")
         started = time.monotonic()
-        snapshot_download(e.repo)
-        print(f"[done  ] {e.repo} in {time.monotonic() - started:.0f}s")
-    return 0
+        for attempt in range(1, attempts + 1):
+            print(f"[качаю ] {e.repo} (~{e.gb:.1f} ГБ), попытка {attempt}", flush=True)
+            try:
+                # Fewer parallel connections: on a weak link more workers make
+                # stalls more likely, not the transfer faster.
+                snapshot_download(e.repo, max_workers=2)
+            except Exception as exc:  # noqa: BLE001 - любая сетевая беда
+                print(f"[сбой  ] {type(exc).__name__}: {str(exc)[:120]}", flush=True)
+                time.sleep(min(5 * attempt, 30))
+                continue
+            print(f"[готово] {e.repo} за {time.monotonic() - started:.0f} с", flush=True)
+            break
+        else:
+            failed += 1
+            print(f"[бросаю] {e.repo}: не вышло за {attempts} попыток", flush=True)
+    return 1 if failed else 0
 
 
 def _verify_mlx_llm(repo: str) -> str:
