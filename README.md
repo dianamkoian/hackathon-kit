@@ -5,6 +5,11 @@ Verka не выносит вердикт «фейк / не фейк», а пок
 манипуляции с дословными цитатами из самого сообщения и называет одну проверку,
 которая снимет сомнение быстрее всего.
 
+**Попробовать:** https://background-estates-move-aid.trycloudflare.com —
+экран проверки на живой модели (qwen2.5:7b, локально). Презентация —
+[`/slides`](https://background-estates-move-aid.trycloudflare.com/slides),
+документация API — [`/docs`](https://background-estates-move-aid.trycloudflare.com/docs).
+
 ![демо](docs/demo.gif)
 
 ## Коротко
@@ -110,6 +115,18 @@ python3 scripts/check_backend.py    # один настоящий вызов: к
 предзагрузку весов см. `RUNBOOK.md` — качать дома, не на площадке.
 
 ## Интеграция
+
+На рабочей ссылке (документация — [`/docs`](https://background-estates-move-aid.trycloudflare.com/docs)):
+
+```bash
+curl -s https://background-estates-move-aid.trycloudflare.com/run \
+  -H 'content-type: application/json' \
+  -d '{"text": "Мам, это я, телефон разбился, скинь 5000"}' | python3 -m json.tool
+```
+
+API открытый, без ключей: авторизация и лимиты по тарифам — следующий шаг.
+
+Локально:
 
 ```bash
 curl -s localhost:8000/run -H 'content-type: application/json' \
