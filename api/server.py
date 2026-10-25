@@ -81,6 +81,9 @@ class SafeWordRequest(BaseModel):
 class RunRequest(BaseModel):
     text: str
     arm: str = "cascade"  # "cascade" | "baseline"
+    # false — проверка без записи в хранилище: тренировка и тестовые прогоны
+    # не должны накручивать «вам не первому это прислали» и /stats.
+    save: bool = True
 
 
 @app.get("/healthz")
@@ -96,9 +99,14 @@ def healthz() -> dict:
 
 @app.get("/samples")
 def samples() -> list[dict]:
-    """Fixture transcripts, so the demo page has something to click."""
+    """Fixture transcripts, so the demo page has something to click.
+
+    expected_assessment — эталон ручной разметки, тот же, по которому считается
+    таблица метрик. Тренировка сверяет ответ человека с ним, а не с системой.
+    """
     return [
-        {"id": c["id"], "difficulty": c["difficulty"], "text": c["text"]}
+        {"id": c["id"], "difficulty": c["difficulty"], "text": c["text"],
+         "expected_assessment": (c.get("expected") or {}).get("assessment")}
         for c in _cases
     ]
 
@@ -119,11 +127,12 @@ def run_endpoint(req: RunRequest) -> dict:
     if req.arm == "cascade":
         quick = decisive_answer(req.text)
         if quick is not None:
-            _store.save(
-                text=req.text, status="mechanical",
-                assessment=quick.get("assessment"), markers=quick.get("markers"),
-                confidence=None, backend="mechanical", cost_usd=0.0, latency_ms=0.0,
-            )
+            if req.save:
+                _store.save(
+                    text=req.text, status="mechanical",
+                    assessment=quick.get("assessment"), markers=quick.get("markers"),
+                    confidence=None, backend="mechanical", cost_usd=0.0, latency_ms=0.0,
+                )
             return {
                 "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
                 "answered": True, "data": quick, "confidence": None,
@@ -163,11 +172,12 @@ def run_endpoint(req: RunRequest) -> dict:
                 "explanation": "приёмов манипуляции в тексте не найдено. "
                                "Это не гарантия: мы проверяем приёмы, а не факты",
             }
-        _store.save(
-            text=req.text, status="mechanical",
-            assessment=fallback.get("assessment"), markers=fallback.get("markers"),
-            confidence=None, backend="mechanical", cost_usd=0.0, latency_ms=0.0,
-        )
+        if req.save:
+            _store.save(
+                text=req.text, status="mechanical",
+                assessment=fallback.get("assessment"), markers=fallback.get("markers"),
+                confidence=None, backend="mechanical", cost_usd=0.0, latency_ms=0.0,
+            )
         return {
             "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
             "answered": True, "data": fallback, "confidence": None,
@@ -185,12 +195,13 @@ def run_endpoint(req: RunRequest) -> dict:
         }
 
     data = result.data if isinstance(result.data, dict) else {}
-    _store.save(
-        text=req.text, status=result.status, assessment=data.get("assessment"),
-        markers=data.get("markers"), confidence=result.confidence,
-        backend=_provider.name, cost_usd=result.trace.cost_usd,
-        latency_ms=result.trace.model_latency_ms,
-    )
+    if req.save:
+        _store.save(
+            text=req.text, status=result.status, assessment=data.get("assessment"),
+            markers=data.get("markers"), confidence=result.confidence,
+            backend=_provider.name, cost_usd=result.trace.cost_usd,
+            latency_ms=result.trace.model_latency_ms,
+        )
     data_markers = (result.data or {}).get("markers") if isinstance(result.data, dict) else None
     return {"arm": req.arm, "seen_before": seen_before,
             **result.to_dict(), "product": present(result.data),
