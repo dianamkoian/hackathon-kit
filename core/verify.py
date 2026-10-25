@@ -414,7 +414,7 @@ def _script(char: str) -> str | None:
 def _disguised(letters: list[tuple[str, str]], dominant: str | None) -> bool:
     """One switch of script inside a word: a disguise or an honest compound?
 
-    «Bыплата», «ВЫΠЛAТА»: the letters of one script are all look-alikes of the
+    «Bыплата», «нaчиcлeнa»: the letters of one script are all look-alikes of the
     other — a disguise. «СберPay»: a lowercase word then a capitalised one —
     a brand compound. «ЮMoney»: «Ю» and «n» have no look-alikes — honest.
     """
@@ -435,8 +435,8 @@ def _disguised(letters: list[tuple[str, str]], dominant: str | None) -> bool:
 def find_mixed_script_words(text: str) -> list[dict[str, Any]]:
     """Words that mix Cyrillic, Latin and Greek letters, the way spam filters are dodged.
 
-    Flagged: any Greek letter inside a mixed word («ΌДОБРЕНА»), two or more
-    switches of script («ПEРEЙДИTЕ»), or a single switch where one side is
+    Flagged: any Greek letter inside a mixed word («Σрочно»), two or more
+    switches of script («кoмпeнcaция»), or a single switch where one side is
     all look-alikes («Bыплата»). Brand compounds like «СберPay» and «ЮMoney» are
     not flagged. A whole word in a foreign script («Ɓ») is not a mixed word.
     """
@@ -685,11 +685,11 @@ if __name__ == "__main__":
     expect(kinds("ИНН 7707083893, ИНН/КПП 500100732259/770701001"), [])
     expect(kinds("ИНН: 7707083894"), [("invalid_inn", "ИНН: 7707083894")])
 
-    # A whole message, written for this test: a fake receipt in the style of
-    # mass mailings — wrong ИНН, a link and letters swapped for look-alikes.
-    case = {"id": "fake-receipt", "text": (
-        "ЧЕК #40533. ИНН12345678. Доступные призы по чеку: Забрать http://пример.ru\n"
-        "ВЫΠЛAТА ΌДОБРЕНА, ПEРEЙДИTЕ К ПРΌВЕΡКЕ")}
+    # A whole message, invented for this test: a fake compensation notice —
+    # wrong ИНН, a link and letters swapped for Latin and Greek look-alikes.
+    case = {"id": "fake-compensation", "text": (
+        "Вам нaчиcлeнa кoмпeнcaция 5000 ₽. ИНН12345678. Пoлучитe пo ccылкe http://пример.ru\n"
+        "Σрочно: ΟДОБРЕНО ΤОЛЬКО СЕГОДНЯ")}
     signals = find_mechanical_signals(case["text"])
     for s in signals:
         expect(case["text"][s["start"]:s["end"]], s["quote"])
@@ -698,7 +698,7 @@ if __name__ == "__main__":
     expect([s["reason"] for s in signals if s["kind"] == "invalid_inn"],
            ["8 цифр, а у юрлица 10, у ИП и физлица 12"])
     expect([s["quote"] for s in signals if s["kind"] == "mixed_script"],
-           ["ВЫΠЛAТА", "ΌДОБРЕНА", "ПEРEЙДИTЕ", "ПРΌВЕΡКЕ"])
+           ["нaчиcлeнa", "кoмпeнcaция", "Пoлучитe", "пo", "ccылкe", "Σрочно", "ΟДОБРЕНО", "ΤОЛЬКО"])
 
     # The gate, with a mapping the way a domain spec would pass it.
     mapping = {"card_number": ("money_request", "code_request"),
