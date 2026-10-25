@@ -189,7 +189,6 @@ SPEC = TaskSpec(
     # алфавиты и неверный ИНН намеренно НЕ включены: это сигналы для
     # трассировки и подсветки, а не повод забраковать ответ.
     signal_markers={
-        "card_number": ("money_request", "code_request"),
         "link": "external_link",
         "secret_request": "code_request",
     },
@@ -299,8 +298,9 @@ _SIGNAL_TO_MARKER = {
 }
 
 # Сигналы, каждый из которых сам по себе — основание не доверять сообщению.
-# Просьба кода и номер карты в чужом сообщении не имеют безобидного прочтения.
-_DECISIVE = ("secret_request", "card_number")
+# Просьба кода в чужом сообщении не имеет безобидного прочтения. Номер карты
+# имеет: уведомления банка, чек, «верни за обед» (вопрос 010).
+_DECISIVE = ("secret_request",)
 
 
 def mechanical_answer(text: str) -> dict | None:
