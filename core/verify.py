@@ -537,6 +537,15 @@ _SUPPRESSION = re.compile(
     re.IGNORECASE)
 
 
+# Сообщение о событии: ссылка на источник, которого в тексте нет. Сигнал
+# уровня doubt — факты мы не проверяем. Первое лицо («сообщаем») не считается:
+# так пишут банки и сервисы в своих уведомлениях.
+_NEWS_CLAIM = re.compile(
+    r"\b(?:сообщает|сообщил[аи]?|по данным|по информации|стало известно|говорят|"
+    r"пресс-служб\w*|официально|как сообщ(?!аем)\w*)\b",
+    re.IGNORECASE)
+
+
 def _phrase_signals(text: str) -> list[dict[str, Any]]:
     """Находит формулировки, которые видно глазом, и цитирует их по позиции."""
     found: list[dict[str, Any]] = []
@@ -545,7 +554,8 @@ def _phrase_signals(text: str) -> list[dict[str, Any]]:
                           ("new_contact_phrase", _NEW_CONTACT_PHRASE),
                           ("too_good_phrase", _TOO_GOOD_PHRASE),
                           ("spread_call", _SPREAD_CALL),
-                          ("suppression", _SUPPRESSION)):
+                          ("suppression", _SUPPRESSION),
+                          ("news_claim", _NEWS_CLAIM)):
         for m in pattern.finditer(text):
             found.append({"kind": kind, "quote": m.group(0).strip(),
                           "start": m.start(), "end": m.end()})
@@ -663,7 +673,9 @@ if __name__ == "__main__":
             ("suppression", "пока пост не удалили")])
     expect(kinds("Поделитесь с друзьями. По телевизору молчат."),
            [("spread_call", "Поделитесь с друзьями"), ("suppression", "телевизору молчат")])
-    expect(kinds("В Казани открыли станцию метро, сообщает пресс-служба мэрии."), [])
+    expect(kinds("В Казани открыли станцию метро, сообщает пресс-служба мэрии."),
+           [("news_claim", "сообщает"), ("news_claim", "пресс-служба")])
+    expect(kinds("Сообщаем, что заказ доставлен."), [])
 
     # Mixed scripts: disguises yes, brand compounds no.
     expect(kinds("Bыплата одобрена"), [("mixed_script", "Bыплата")])

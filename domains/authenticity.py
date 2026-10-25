@@ -187,6 +187,35 @@ def _search_links(text: str) -> list[dict]:
             {"title": "Найти в Google Новостях", "url": f"https://news.google.com/search?q={q}&hl=ru"}]
 
 
+NEWS_RULE_EXPLANATION = "Это сообщение о событии: факты мы не подтверждаем. Проверьте источник"
+
+
+def apply_news_rule(data: Any, text: str) -> tuple[Any, str | None]:
+    """Сообщение о событии не получает «доверять» — правилом, а не просьбой к модели.
+
+    Замер на живой qwen2.5:7b: правило в промпте модель игнорирует и ставит
+    trust C00 спокойной выдуманной новости. Поэтому решает код: если в тексте
+    есть ссылка на источник события («сообщает», «по данным», «пресс-служба»), а
+    итог — trust или doubt с C00, итог становится doubt и C20. Возвращает
+    (data, деталь для trace) или (data, None), если правило не сработало.
+    """
+    from core.verify import find_mechanical_signals
+
+    if not isinstance(data, dict):
+        return data, None
+    soft = data.get("assessment") == "trust" or (
+        data.get("assessment") == "doubt" and data.get("check_id") == "C00")
+    if not soft:
+        return data, None
+    claims = [s["quote"] for s in find_mechanical_signals(text) if s["kind"] == "news_claim"]
+    if not claims:
+        return data, None
+    was = f"{data.get('assessment')} {data.get('check_id')}"
+    data = {**data, "assessment": "doubt", "check_id": "C20",
+            "explanation": NEWS_RULE_EXPLANATION}
+    return data, f"сообщение о событии ({', '.join(claims[:2])}): {was} → doubt C20"
+
+
 def present(data: Any, text: str = "") -> dict:
     """То, что показывает продукт: оценка + одна карточка проверки."""
     if not isinstance(data, dict):

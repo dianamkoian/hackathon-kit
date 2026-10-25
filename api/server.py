@@ -27,6 +27,7 @@ from core.providers import get_provider
 import api.ollama  # noqa: F401 — registers LLM_BACKEND=ollama (local models on Windows)
 from domains.authenticity import (
     SPEC, decisive_answer, load_cases, make_mock_handler, mechanical_answer,
+    apply_news_rule,
     present,
 )
 
@@ -113,6 +114,14 @@ def samples() -> list[dict]:
     ]
 
 
+def _news_step(detail: str | None) -> list[dict]:
+    """Узел news_rule в trace механического ответа, если правило сработало."""
+    if not detail:
+        return []
+    return [{"node": "news_rule", "ok": True, "detail": detail, "model": None,
+             "cost_usd": 0.0, "latency_ms": 0.0, "input_tokens": 0, "output_tokens": 0}]
+
+
 @app.post("/run")
 def run_endpoint(req: RunRequest) -> dict:
     if not req.text.strip():
@@ -129,6 +138,7 @@ def run_endpoint(req: RunRequest) -> dict:
     if req.arm == "cascade":
         quick = decisive_answer(req.text)
         if quick is not None:
+            quick, news_rule = apply_news_rule(quick, req.text)
             if req.save:
                 _store.save(
                     text=req.text, status="mechanical",
@@ -150,7 +160,8 @@ def run_endpoint(req: RunRequest) -> dict:
                           "steps": [{"node": "signals", "ok": True,
                                      "detail": quick["explanation"], "model": None,
                                      "cost_usd": 0.0, "latency_ms": 0.0,
-                                     "input_tokens": 0, "output_tokens": 0}]},
+                                     "input_tokens": 0, "output_tokens": 0}]
+                          + _news_step(news_rule)},
             }
 
     try:
@@ -176,6 +187,7 @@ def run_endpoint(req: RunRequest) -> dict:
                 "explanation": "приёмов манипуляции в тексте не найдено. "
                                "Это не гарантия: мы проверяем приёмы, а не факты",
             }
+        fallback, news_rule = apply_news_rule(fallback, req.text)
         if req.save:
             _store.save(
                 text=req.text, status="mechanical",
@@ -197,9 +209,14 @@ def run_endpoint(req: RunRequest) -> dict:
                       "steps": [{"node": "signals", "ok": True,
                                  "detail": fallback["explanation"], "model": None,
                                  "cost_usd": 0.0, "latency_ms": 0.0,
-                                 "input_tokens": 0, "output_tokens": 0}]},
+                                 "input_tokens": 0, "output_tokens": 0}]
+                      + _news_step(news_rule)},
         }
 
+    if result.answered:
+        result.data, news_rule = apply_news_rule(result.data, req.text)
+        if news_rule:
+            result.trace.add("news_rule", True, detail=news_rule)
     data = result.data if isinstance(result.data, dict) else {}
     if req.save:
         _store.save(
