@@ -31,6 +31,10 @@ print('api ok:', body['status'], '|', len(body['trace']['steps']), 'trace steps'
 "
 
 echo
+echo "== числа в README совпадают с прогоном =="
+python3 scripts/check_readme_numbers.py
+
+echo
 echo "== no secrets committed =="
 # Exclude this file: it contains the pattern it searches for, so without the
 # exclusion the scanner always finds itself and reports a secret that is not there.

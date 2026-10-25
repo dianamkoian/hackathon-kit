@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Не пускает в общую ветку то, что сломает работу остальным пятерым.
+#
+# Сломанная основная ветка на хакатоне стоит дорого: её скачают пятеро и
+# пятеро встанут. Проверка занимает несколько секунд.
+#
+# Аварийный выход, если проверка мешает за пять минут до сдачи:
+#   SKIP_CHECKS=1 git push
+# Это сознательное решение, а не обход. Жёсткий запрет в 15:55 хуже, чем
+# сломанная ветка, поэтому выход есть — но по умолчанию он закрыт.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+if [ "${SKIP_CHECKS:-0}" = "1" ]; then
+  echo "pre-push: проверки пропущены по SKIP_CHECKS=1"
+  exit 0
+fi
+
+echo "pre-push: проверяю, что ветка не сломается..."
+
+if ! bash scripts/smoke.sh > /tmp/smoke-$$.log 2>&1; then
+  echo
+  echo "ПУШ ОСТАНОВЛЕН: проверка не прошла."
+  tail -25 "/tmp/smoke-$$.log"
+  echo
+  echo "Почини или, если это осознанно и время поджимает: SKIP_CHECKS=1 git push"
+  rm -f "/tmp/smoke-$$.log"
+  exit 1
+fi
+rm -f "/tmp/smoke-$$.log"
+
+if ! python3 scripts/check_readme_numbers.py; then
+  echo
+  echo "ПУШ ОСТАНОВЛЕН: числа в README разошлись с прогоном."
+  echo "Если это осознанно: SKIP_CHECKS=1 git push"
+  exit 1
+fi
+
+# Отставание не блокирует — но предупредить надо: агент, работающий по
+# устаревшей картине, уверенно делает не то.
+git fetch -q origin main 2>/dev/null || true
+behind=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+if [ "${behind:-0}" -gt 0 ]; then
+  echo "ВНИМАНИЕ: ты отстала от общей ветки на $behind коммит(ов). После пуша сделай git pull --rebase."
+fi
+
+echo "pre-push: порядок"
+exit 0
