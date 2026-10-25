@@ -1,9 +1,13 @@
-"""Two independent quality gates.
+"""Independent quality gates.
 
 `check_quotes` is mechanical: a claimed quote either appears in the source or it
 does not. No model, no cost, no judgment — it catches fabricated evidence
 outright, which is the failure mode a verifier model is worst at spotting
 because it is as willing to believe the quote as the model that invented it.
+
+`check_signals` is mechanical in the other direction. Detectors find what
+needs no judgment — a card number, a link, a request for an SMS code — and
+the answer must account for every one the domain maps to an answer type.
 
 `verify_with_model` is the judgment gate, and it runs on a *different* prompt
 from the one that produced the answer. Self-verification with the same prompt
@@ -501,6 +505,48 @@ def find_mechanical_signals(source_text: str) -> list[dict[str, Any]]:
     return sorted(signals, key=lambda signal: (signal["start"], signal["kind"]))
 
 
+def check_signals(
+    data: Any, source_text: str, expected: dict[str, str | tuple[str, ...]], *,
+    type_field: str, verdict_field: str | None = None, unsafe_verdicts: tuple[str, ...] = (),
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """What the code sees in the source, the answer must name.
+
+    The mirror of `check_quotes`: there the answer claims and the source
+    confirms, here the source shows and the answer has to account for it.
+    `expected` maps a signal kind to the answer type(s) that cover it, e.g.
+    {"link": "external_link"}. It comes from the domain spec, as do
+    `type_field` (dotted path to the types, e.g. "markers[].type") and
+    `verdict_field`/`unsafe_verdicts` (e.g. "assessment", ("trust",)), so the
+    core knows nothing about the theme. For every mapped kind found:
+      - the answer must contain one of its types;
+      - the verdict must not be one of `unsafe_verdicts`.
+    Unmapped kinds never fail the gate. All signals come back for the trace
+    and the UI.
+
+    Returns (problems, signals); problems are strings, like `check_quotes`.
+    """
+    signals = find_mechanical_signals(source_text)
+    present = {value for _, value in resolve_path(data, type_field) if isinstance(value, str)}
+    verdicts = resolve_path(data, verdict_field) if verdict_field else []
+    verdict = verdicts[0][1] if verdicts else None
+
+    problems: list[str] = []
+    for kind, wanted in expected.items():
+        hits = [s for s in signals if s["kind"] == kind]
+        if not hits:
+            continue
+        wanted = (wanted,) if isinstance(wanted, str) else tuple(wanted)
+        quote = hits[0]["quote"]
+        excerpt = quote if len(quote) <= 60 else quote[:57] + "..."
+        more = f" (+{len(hits) - 1})" if len(hits) > 1 else ""
+        if not present.intersection(wanted):
+            problems.append(f"{type_field}: no {' or '.join(map(repr, wanted))} "
+                            f"for {kind} {excerpt!r}{more}")
+        if verdict in unsafe_verdicts:
+            problems.append(f"{verdict_field}: {verdict!r} with {kind} {excerpt!r}{more}")
+    return problems, signals
+
+
 if __name__ == "__main__":
     import json
     from pathlib import Path
@@ -571,9 +617,30 @@ if __name__ == "__main__":
     expect([s["quote"] for s in signals if s["kind"] == "mixed_script"],
            ["ΌБНΑРУЖЕΉ", "БA3E", "ДΌТАЦИΌНHЫХ", "ПEҎЕХОДИTЕ", "ПРOВЕΡКЕ"])
 
+    # The gate, with a mapping the way a domain spec would pass it.
+    mapping = {"card_number": ("money_request", "code_request"),
+               "link": "external_link", "secret_request": "code_request"}
+    gate = dict(type_field="markers[].type", verdict_field="assessment",
+                unsafe_verdicts=("trust",))
+    naive = {"markers": [], "assessment": "trust"}
+    problems, _ = check_signals(naive, case["text"], mapping, **gate)
+    expect(problems, ["markers[].type: no 'external_link' for link 'http://примерссылки.ru'",
+                      "assessment: 'trust' with link 'http://примерссылки.ru'"])
+    good = {"markers": [{"type": "too_good"}, {"type": "external_link"}],
+            "assessment": "distrust"}
+    expect(check_signals(good, case["text"], mapping, **gate)[0], [])
+    s02 = ("Служба безопасности Сбербанка. Для отмены продиктуйте код из СМС оператору.")
+    expect(check_signals({"markers": [{"type": "authority"}], "assessment": "distrust"},
+                         s02, mapping, **gate)[0],
+           ["markers[].type: no 'code_request' for secret_request 'продиктуйте код из СМС'"])
+    # Unmapped kinds are signals only: a bad ИНН alone never fails the gate.
+    expect(check_signals({"markers": [], "assessment": "trust"}, "ИНН71384592",
+                         mapping, **gate)[0], [])
+
     print(f"core.verify: {checked} checks passed\n")
     print(f"{case['id']}: {len(signals)} signals")
     for s in signals:
         extra = s.get("domain") or s.get("reason") or ""
         print(f"  {s['start']:>4}-{s['end']:<4} {s['kind']:<13} {s['quote']!r}"
               + (f"  ({extra})" if extra else ""))
+    print(f"gate on a naive 'trust' answer: {problems}")
