@@ -70,7 +70,10 @@
   .num{position:fixed; right:22px; bottom:18px; font:500 12px var(--sans); color:var(--muted);
        letter-spacing:.08em}
   .hint{position:fixed; left:22px; bottom:18px; font-size:12px; color:var(--muted)}
-  @media(max-width:640px){ .deck{padding:5vh 7vw} td.big{font-size:26px} ul.caps{grid-template-columns:1fr} }
+  @media(max-width:640px){ .deck{padding:5vh 7vw} td.big{font-size:26px} ul.caps{grid-template-columns:1fr}
+                          /* на телефоне длинный слайд прокручивается, а не обрезается снизу */
+                          html,body{height:auto; overflow-y:auto}
+                          .deck{height:auto; min-height:100vh; align-items:flex-start; padding-bottom:64px} }
   /* Печать в PDF (Cmd+P → «Сохранить как PDF»): все слайды, по одному на страницу */
   @page{size:1280px 720px; margin:0}
   @media print{
