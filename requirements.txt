@@ -8,5 +8,6 @@
 fastapi~=0.119.1      # только для демо-API
 uvicorn~=0.33.0       # только для демо-API
 httpx~=0.28.1         # нужен fastapi.testclient в смоуке перед пушем
+python-multipart~=0.0.28  # загрузка файлов: голосовые и изображения
 anthropic~=1.0        # только для LLM_BACKEND=anthropic
 mlx-lm~=0.31.3        # только для LLM_BACKEND=mlx или hybrid (Apple Silicon)
