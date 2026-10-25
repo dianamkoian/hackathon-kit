@@ -207,6 +207,19 @@
   .quiz-answers .btn { padding:18px; }
   .quiz-answers .btn[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
   .quiz-score { font:700 clamp(48px, 9vw, 80px)/1 var(--serif); letter-spacing:-.03em; margin:0; }
+  /* счёт тренировки: верно и очки рядом с прогрессом, шкала заполняется очками */
+  .quiz-head { display:flex; justify-content:space-between; align-items:baseline; gap:var(--s2);
+               flex-wrap:wrap; margin-bottom:var(--s1); }
+  .quiz-head .label { margin:0; }
+  .quiz-tally { font:500 13px var(--mono); position:relative; }
+  .quiz-tally b { font-weight:800; }
+  .quiz-gain { position:absolute; right:0; top:-22px; font:800 15px var(--mono); color:var(--accent-ink);
+               background:var(--accent); padding:1px 6px; border-radius:3px; opacity:0; }
+  .quiz-gain.show { animation:gain 1s ease-out; }
+  @keyframes gain { 0% { opacity:0; transform:translateY(6px); } 20% { opacity:1; transform:none; }
+                    80% { opacity:1; } 100% { opacity:0; transform:translateY(-6px); } }
+  .quiz-bar { height:10px; border-radius:999px; background:var(--mark); overflow:hidden; margin-bottom:var(--s2); }
+  .quiz-bar span { display:block; height:100%; width:0; background:var(--accent); transition:width .5s ease; }
   .match { font:700 24px var(--serif); margin:var(--s3) 0 var(--s1); }
 
   /* ---------- тарифы ---------- */
@@ -653,7 +666,13 @@
     <p class="lead">Десять сообщений из нашего набора. Решите сами, потом посмотрите, что нашла
       система, — с цитатами. Так приёмы запоминаются лучше любой памятки.</p>
     <div id="quiz-play">
-      <p class="label" id="quiz-progress"></p>
+      <div class="quiz-head">
+        <p class="label" id="quiz-progress"></p>
+        <span class="quiz-tally"><span class="quiz-gain" id="quiz-gain"></span>
+          верно <b id="quiz-right">0</b> · очки <b id="quiz-points">0</b> из <span id="quiz-max">100</span></span>
+      </div>
+      <div class="quiz-bar" role="progressbar" aria-label="Очки за раунд" aria-valuemin="0"
+           aria-valuemax="100" aria-valuenow="0" id="quiz-bar"><span></span></div>
       <p class="quiz-msg" id="quiz-msg"></p>
       <div class="quiz-answers" id="quiz-answers">
         <button type="button" class="btn" data-a="trust">Доверять</button>
@@ -673,6 +692,7 @@
     <div id="quiz-done" hidden>
       <p class="label">Итог</p>
       <p class="quiz-score" id="quiz-score"></p>
+      <p class="label" id="quiz-score-points" style="margin-top:var(--s1)"></p>
       <p class="lead" id="quiz-score-why" style="margin-bottom:var(--s3)"></p>
       <button type="button" class="btn primary" id="quiz-again">Ещё раз</button>
     </div>
@@ -692,8 +712,8 @@
     <p class="label">Частые вопросы</p>
     <dl class="faq">
       <dt>Что будет, если бесплатные проверки закончились?</dt>
-      <dd>Проверка всё равно выполнится — мы только напомним о тарифе. Отказать в помощи
-        в момент обмана хуже, чем недополучить оплату.</dd>
+      <dd>Проверка выполнится, так как режим lite доступен для всех пользователей.
+        Verka не отказывает в помощи.</dd>
       <dt>Видите ли вы мои сообщения?</dt>
       <dd>Текст проверки сохраняется на нашем сервере — чтобы сказать «это сообщение
         уже присылали другим» и учиться на настоящих примерах. Не вставляйте в проверку
@@ -1179,7 +1199,7 @@ NODE["распознавание речи"] = { name: "Распознавани�
 //    попадала в хранилище и не накручивала «уже проверяли N раз».
 // ===================================================================
 const QUIZ_LEN = 10;
-const quiz = { items: [], i: 0, matched: 0, almost: 0, cache: new Map() };
+const quiz = { items: [], i: 0, matched: 0, almost: 0, points: 0, cache: new Map() };
 
 // Обычные реплики из корпуса чатов и новостей (id d-…/e-… с оценкой trust) нужны
 // метрикам как фон, но в тренировке это не сообщения, которые присылают лично
@@ -1228,7 +1248,9 @@ function quizStart() {
   // Если какой-то группы не хватило — добираем случайными, чтобы раунд был полным.
   for (const s of pool) if (picked.length < QUIZ_LEN && !picked.includes(s)) picked.push(s);
   quiz.items = shuffle(picked).slice(0, QUIZ_LEN);
-  quiz.i = 0; quiz.matched = 0; quiz.almost = 0;
+  quiz.i = 0; quiz.matched = 0; quiz.almost = 0; quiz.points = 0;
+  $("quiz-gain").classList.remove("show"); $("quiz-gain").textContent = "";
+  renderTally();
   $("quiz-play").hidden = false; $("quiz-done").hidden = true;
   quizShow();
 }
@@ -1263,6 +1285,7 @@ async function quizAnswer(btn) {
     const grade = quizGrade(btn.dataset.a, truth);
     if (grade === "ok") quiz.matched++;
     if (grade === "almost") quiz.almost++;
+    addPoints(QUIZ_POINTS[grade]);
     const v = VERDICT[truth] || VERDICT.doubt;
     const note = QUIZ_NOTE[`${truth}:${btn.dataset.a}`] || "";
     $("quiz-match").innerHTML = `${QUIZ_VERDICT[grade]} — по разметке `
@@ -1278,6 +1301,7 @@ async function quizAnswer(btn) {
   const system = body.answered ? (body.product || {}).assessment : "doubt";
   const hit = btn.dataset.a === system;
   if (hit) quiz.matched++;
+  addPoints(hit ? QUIZ_POINTS.ok : 0);
   $("quiz-match").innerHTML = (hit ? "Совпало с разбором системы" : "Система решила иначе")
     + ` — <span class="${verdictOf(body).cls}">${escapeHtml(verdictOf(body).word.toLowerCase())}</span>`;
 }
@@ -1311,11 +1335,34 @@ async function quizEvidence() {
   return body;
 }
 
+// Очки за ответ: верно — 10, почти — 5. Шкала и счёт рядом с прогрессом.
+const QUIZ_POINTS = { ok: 10, almost: 5, miss: 0 };
+function renderTally() {
+  const max = (quiz.items.length || QUIZ_LEN) * QUIZ_POINTS.ok;
+  $("quiz-right").textContent = quiz.matched;
+  $("quiz-points").textContent = quiz.points;
+  $("quiz-max").textContent = max;
+  $("quiz-bar").firstElementChild.style.width = `${Math.min(100, (quiz.points / max) * 100)}%`;
+  $("quiz-bar").setAttribute("aria-valuemax", max);
+  $("quiz-bar").setAttribute("aria-valuenow", quiz.points);
+}
+function addPoints(n) {
+  quiz.points += n;
+  renderTally();
+  const gain = $("quiz-gain");
+  gain.textContent = `+${n}`;
+  gain.classList.remove("show");
+  void gain.offsetWidth;                                    // перезапуск анимации
+  gain.classList.add("show");
+  gain.onanimationend = () => gain.classList.remove("show");
+}
+
 function quizNext() {
   if (++quiz.i < quiz.items.length) { quizShow(); window.scrollTo(0, 0); return; }
   $("quiz-play").hidden = true; $("quiz-done").hidden = false;
   $("quiz-score").textContent = `${quiz.matched} из ${quiz.items.length}`
     + (quiz.almost ? ` · ещё ${quiz.almost} почти` : "");
+  $("quiz-score-points").textContent = `${quiz.points} очков из ${quiz.items.length * QUIZ_POINTS.ok}`;
   $("quiz-score-why").textContent = quiz.matched >= quiz.items.length * 0.8
     ? "Вы распознаёте почти все случаи. Покажите тренировку близким."
     : "Мошенники рассчитывают ровно на это — в спешке приёмы не видны. Проверяйте, прежде чем отвечать.";
