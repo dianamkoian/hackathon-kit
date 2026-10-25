@@ -118,6 +118,23 @@ def samples() -> list[dict]:
     ]
 
 
+class CascadeAbstained(RuntimeError):
+    """Каскад отказался; ответ даёт механика, а отказ остаётся в trace."""
+
+    def __init__(self, message: str, cascade_reason: str):
+        super().__init__(message)
+        self.cascade_reason = cascade_reason
+
+
+def _abstain_step(exc: Exception) -> list[dict]:
+    """Узел cascade_abstain в trace, если механика отвечает вместо отказа каскада."""
+    if not isinstance(exc, CascadeAbstained):
+        return []
+    return [{"node": "cascade_abstain", "ok": False, "detail": exc.cascade_reason,
+             "model": None, "cost_usd": 0.0, "latency_ms": 0.0,
+             "input_tokens": 0, "output_tokens": 0}]
+
+
 def _news_step(detail: str | None) -> list[dict]:
     """Узел news_rule в trace механического ответа, если правило сработало."""
     if not detail:
@@ -178,11 +195,16 @@ def run_endpoint(req: RunRequest) -> dict:
             # ответ нужен сейчас. Отдаём то, что видят детекторы.
             raise RuntimeError(attempt.reason)
         result = attempt.value
-        if not result.answered and not find_mechanical_signals(req.text):
-            # Каскад отказался, а в тексте нет ни одного наблюдаемого приёма.
-            # «Возьмите паузу» на «купить хлеба?» — ложная тревога; честный
-            # ответ тот же, что у механики на чистом тексте: не найдено, не гарантия.
-            raise RuntimeError(f"каскад не дал ответа ({result.reason}), признаков в тексте нет")
+        if not result.answered:
+            # Отказ каскада — не повод показывать «возьмите паузу». Признаки в
+            # тексте есть — отвечаем тем, что видят детекторы (C06, C11, C20…);
+            # нет — «не найдено, не гарантия», как у механики на чистом тексте.
+            if find_mechanical_signals(req.text):
+                raise CascadeAbstained(
+                    "каскад не уверен в разборе модели; ответ по наблюдаемым признакам",
+                    result.reason)
+            raise CascadeAbstained(
+                f"каскад не дал ответа ({result.reason}), признаков в тексте нет", result.reason)
     except RuntimeError as exc:
         # Модели нет или она не знает этот текст. Часть приёмов наблюдаема
         # детекторами, без модели — отвечаем тем, что код реально видит, и
@@ -207,6 +229,7 @@ def run_endpoint(req: RunRequest) -> dict:
             "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
             "answered": True, "data": fallback, "confidence": None,
             "reason": f"{fallback['explanation']} ({exc})",
+            "cascade_abstained": isinstance(exc, CascadeAbstained),
             "tier_used": "mechanical", "product": present(fallback, req.text),
             "safeword": prompt_for(_safeword, fallback.get("markers")),
             "scheme": (lambda sc: sc.to_dict() if sc else None)(
@@ -219,7 +242,7 @@ def run_endpoint(req: RunRequest) -> dict:
                                  "detail": fallback["explanation"], "model": None,
                                  "cost_usd": 0.0, "latency_ms": 0.0,
                                  "input_tokens": 0, "output_tokens": 0}]
-                      + _news_step(news_rule)},
+                      + _news_step(news_rule) + _abstain_step(exc)},
         }
 
     if result.answered:
