@@ -11,15 +11,15 @@
 
   Стиль — «тёплый Tiffany» (команды 006 и 011): кремовая бумага, чёрный текст,
   ОДИН акцент #81D8D0 — только кнопка «Проверить» и подсветка цитат. Волосяные
-  линии вместо рамок, антиква в заголовках, мелкие подписи прописными с
+  линии вместо рамок, жирный гротеск в заголовках (как подпись логотипа), мелкие подписи прописными с
   разрядкой, ни градиентов, ни теней. Цвет вердикта — только в одном слове.
 
   Порядок внутри:
     1. стили: токены → каркас → страницы по порядку
-    2. разметка по страницам (data-view): проверка #/ · тренировка #/quiz ·
+    2. разметка по страницам (data-view): главная #/ · проверка #/check · тренировка #/quiz ·
        тарифы #/plans · кабинет #/account
     3. скрипт: словари → клиент API → состояния → отрисовка → голосовые →
-       тренировка → тарифы и кабинет → запуск
+       тренировка → тарифы и кабинет → аватар Verka → главная → запуск
   Формат ответа сервера не меняем: на него завязаны проверки и примеры.
 -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="%D0%92%D1%82%D0%BE%D1%80%D0%BE%D0%B5 %D0%BC%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5"%3E%3Crect x="4" y="4" width="112" height="112" rx="26" fill="%231d1b18"/%3E%3Ccircle cx="22" cy="38" r="3.5" fill="%236f6a62"/%3E%3Ccircle cx="22" cy="60" r="3.5" fill="%2381D8D0"/%3E%3Ccircle cx="22" cy="82" r="3.5" fill="%236f6a62"/%3E%3Cpath d="M38 38h48" stroke="%236f6a62" stroke-width="7" stroke-linecap="round"/%3E%3Crect x="31" y="49" width="70" height="22" rx="4" fill="%2381D8D0"/%3E%3Cpath d="M38 60h34" stroke="%231d1b18" stroke-width="7" stroke-linecap="round"/%3E%3Crect x="80" y="51" width="9" height="18" fill="%231d1b18"/%3E%3Cpath d="M38 82h28" stroke="%236f6a62" stroke-width="7" stroke-linecap="round"/%3E%3C/svg%3E">
@@ -29,18 +29,19 @@
     --paper:#fbf8f2; --ink:#1d1b18; --muted:#7a746b; --line:#e6e0d6; --field:#fffdf9;
     --accent:#81D8D0; --accent-ink:#1d1b18; --mark:#c6ece8; --mark-ink:#11332f; --mark-hot:#81D8D0;
     --ok:#2f7d5b; --warn:#9a6a12; --bad:#b23a2e;
-    --serif: Georgia, "Times New Roman", serif;
+    /* Заголовки — жирным гротеском, как подпись логотипа; подписи — моноширинным, как тариф. */
+    --serif: var(--sans);
     --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --s1:8px; --s2:16px; --s3:32px; --s4:64px;
-    --logo-edge:transparent;
+    --logo-edge:transparent; --verka-bg:#efe8dc;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --paper:#151412; --ink:#f3efe7; --muted:#a39d92; --line:#2e2b27; --field:#1c1a17;
       --accent:#81D8D0; --accent-ink:#10201e; --mark:#24433f; --mark-ink:#dffaf6; --mark-hot:#3d6d68;
       --ok:#6fcf9f; --warn:#e5b65a; --bad:#f08072;
-      --logo-edge:#3a3631;
+      --logo-edge:#3a3631; --verka-bg:#2a2723;
     }
   }
 
@@ -51,8 +52,8 @@
          font:17px/1.6 var(--sans); -webkit-font-smoothing:antialiased; }
   main { max-width:860px; margin:0 auto; padding:var(--s3) 24px var(--s4); }
   a { color:inherit; }
-  .label { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
-           font-weight:500; margin:0 0 var(--s2); }
+  .label { font:500 12px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+           margin:0 0 var(--s2); }
   .muted { color:var(--muted); }
   .small { font-size:14px; }
   .rule { border:none; border-top:1px solid var(--line); margin:var(--s4) 0; }
@@ -71,17 +72,22 @@
           color:var(--accent-ink); padding:3px 6px; border-radius:3px; margin-left:6px;
           vertical-align:4px; }
   nav { display:flex; gap:var(--s3); flex-wrap:wrap; align-items:center; }
-  nav a { font-size:12px; letter-spacing:.12em; text-transform:uppercase; text-decoration:none;
-          color:var(--muted); padding:6px 0; }
+  nav a { font:500 12px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase; text-decoration:none;
+          color:var(--muted); padding:6px 4px; border-radius:3px; position:relative;
+          background:linear-gradient(var(--accent), var(--accent)) no-repeat left / 0% 100%;
+          transition:background-size .35s ease, color .2s; }
+  nav a .pro { font-weight:800; }
   nav a:hover { color:var(--ink); }
-  nav a[aria-current="page"] { color:var(--ink); text-decoration:underline;
-                               text-underline-offset:8px; text-decoration-thickness:1px; }
+  /* Активный пункт выделяется маркером, как строка в логотипе, и мигает курсор. */
+  nav a[aria-current="page"] { color:var(--accent-ink); background-size:100% 100%; padding-right:12px; }
+  nav a[aria-current="page"]::after { content:""; position:absolute; right:4px; top:5px; bottom:5px; width:4px;
+                                      background:var(--accent-ink); animation:blink 1s steps(1) infinite; }
   .status { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
   .status::before { content:"●"; margin-right:6px; color:var(--muted); }
   .status.live::before { color:var(--ok); } .status.mock::before { color:var(--warn); }
   .status.down::before { color:var(--bad); }
 
-  h1 { font:700 clamp(38px, 7vw, 56px)/1.04 var(--serif); letter-spacing:-.03em; margin:0; }
+  h1 { font:800 clamp(38px, 7vw, 56px)/1.04 var(--serif); letter-spacing:-.045em; margin:0; }
   .lead { font-size:18px; color:var(--muted); max-width:600px; margin:var(--s2) 0 var(--s4); }
 
   /* ---------- ввод ---------- */
@@ -137,7 +143,7 @@
   .error code { font:14px var(--mono); }
 
   /* ---------- результат: вердикт строкой, цвет — в одном слове ---------- */
-  .verdict .word { font:700 clamp(40px, 8vw, 64px)/1.02 var(--serif); letter-spacing:-.03em; margin:0; }
+  .verdict .word { font:800 clamp(40px, 8vw, 64px)/1.02 var(--serif); letter-spacing:-.045em; margin:0; }
   .w-trust { color:var(--ok); } .w-doubt { color:var(--warn); } .w-distrust { color:var(--bad); }
   .verdict .why { font-size:18px; margin:var(--s2) 0 0; max-width:640px; }
   .seen { margin-top:var(--s2); font-size:15px; }
@@ -241,6 +247,66 @@
   .history .v.distrust { color:var(--bad); } .history .v.trust { color:var(--ok); }
   .history .v.doubt, .history .v.abstain { color:var(--warn); }
 
+  /* ---------- аватар Verka ---------- */
+  /* Одна SVG-картинка, состояние — атрибут data-state на обёртке:
+     idle · checking (бинокль) · trust (класс) · distrust (табличка) · doubt (думает). */
+  .verka { width:100%; max-width:220px; margin:0 auto; text-align:center; }
+  .verka-svg { width:100%; height:auto; display:block; overflow:visible; }
+  .verka .s { display:none; }
+  .verka[data-state="idle"] .s-idle, .verka[data-state="checking"] .s-checking,
+  .verka[data-state="trust"] .s-trust, .verka[data-state="distrust"] .s-distrust,
+  .verka[data-state="doubt"] .s-doubt { display:inline; }
+  .verka-say { display:inline-block; margin:var(--s1) 0 0; padding:6px 12px; border-radius:10px;
+               background:var(--field); border:1px solid var(--line); font:500 13px/1.4 var(--mono); }
+  .verka .head { transform-box:view-box; transform-origin:110px 150px; }
+  .verka[data-state="checking"] .head { animation:scan 1.6s ease-in-out infinite; }
+  .verka .eyes { transform-box:fill-box; transform-origin:center; animation:eyeblink 4s infinite; }
+  .verka .led { animation:blink 1.2s steps(1) infinite; }
+  .verka .thumb { transform-box:view-box; transform-origin:160px 190px; animation:bounce .9s ease-in-out infinite; }
+  .verka .sign-g { transform-box:view-box; transform-origin:160px 190px; animation:wave 1.1s ease-in-out infinite; }
+  .verka .qmark { animation:bounce 1.4s ease-in-out infinite; }
+  @keyframes scan { 0%,100% { transform:rotate(-8deg) translateX(-5px); } 50% { transform:rotate(8deg) translateX(5px); } }
+  @keyframes eyeblink { 0%,92%,100% { transform:scaleY(1); } 95% { transform:scaleY(.1); } }
+  @keyframes bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+  @keyframes wave { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg); } }
+  .with-verka { display:grid; grid-template-columns:minmax(0, 1fr) 200px; gap:var(--s3); align-items:center; }
+  .verdict.with-verka { grid-template-columns:1fr 170px; }
+
+  /* ---------- главная: история по прокрутке ---------- */
+  .home-hero { min-height:72vh; display:grid; grid-template-columns:1fr 260px; gap:var(--s3); align-items:center; }
+  .home-title .wordmark { font-size:clamp(64px, 14vw, 120px); letter-spacing:-.06em; }
+  .home-title .tier { font-size:clamp(32px, 7vw, 60px); padding:4px 12px; border-radius:6px; vertical-align:.35em; }
+  .scroll-hint { font:500 12px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+                 animation:bounce 1.6s ease-in-out infinite; }
+  .story { height:260vh; position:relative; }
+  .story-pin { position:sticky; top:12vh; }
+  .story-msg { font-size:clamp(22px, 3.4vw, 30px); line-height:1.7; }
+  .story-msg mark { background-color:transparent; background-image:linear-gradient(var(--mark-hot), var(--mark-hot));
+                    background-repeat:no-repeat; background-size:0% 100%; transition:background-size .6s ease; }
+  .story-msg mark sup { opacity:0; transition:opacity .3s; }
+  .story-msg mark.lit { background-size:100% 100%; }
+  .story-msg mark.lit sup { opacity:1; }
+  .story-markers li { opacity:0; transform:translateX(-16px); transition:opacity .4s, transform .4s; }
+  .story-markers li.lit { opacity:1; transform:none; }
+  .home-block { padding:var(--s4) 0; border-top:1px solid var(--line); }
+  .home-h { font:800 clamp(30px, 5vw, 44px)/1.1 var(--serif); letter-spacing:-.04em; margin:0 0 var(--s2); }
+  .home-split { display:grid; grid-template-columns:220px 1fr; gap:var(--s3); align-items:center; }
+  .home-word { font:800 clamp(38px, 7vw, 56px)/1.05 var(--serif); letter-spacing:-.045em; margin:0 0 var(--s2); }
+  .home-act { font:700 22px/1.3 var(--serif); margin:0 0 var(--s1); }
+  .home-steps li { opacity:0; transform:translateY(12px); transition:opacity .4s, transform .4s; }
+  .home-steps li.in { opacity:1; transform:none; }
+  .reveal { opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity:1; transform:none; }
+  .home-end { min-height:70vh; display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+              gap:var(--s2); border-top:1px solid var(--line); }
+  .go-bar { width:100%; max-width:420px; height:4px; background:var(--line); }
+  .go-bar span { display:block; height:100%; width:0; background:var(--accent); }
+  .go-bar span.run { width:100%; transition:width 2.5s linear; }
+  .pro { font-family:var(--mono); font-weight:800; }
+  @media (prefers-reduced-motion: reduce) {
+    .verka *, .reveal, .story-msg mark, .story-markers li, .home-steps li { animation:none !important; transition:none !important; }
+  }
+
   /* ---------- узкий экран ---------- */
   @media (max-width:640px) {
     main { padding:var(--s2) 16px var(--s3); }
@@ -257,6 +323,12 @@
     .message { font-size:19px; }
     .row .btn.primary { flex:1 1 100%; }
     .hint-kbd { display:none; }
+    .with-verka, .verdict.with-verka { grid-template-columns:minmax(0, 1fr) 110px; gap:var(--s2); }
+    .with-verka h1 { font-size:32px; overflow-wrap:break-word; }
+    .verka-say { font-size:11px; }
+    .home-hero, .home-split { grid-template-columns:1fr; }
+    .home-hero .verka, .home-split .verka { max-width:180px; }
+    nav a[aria-current="page"] { padding-right:10px; }
   }
 </style>
 </head>
@@ -278,7 +350,8 @@
       <span class="wordmark">Verka<span class="tier" id="tier">pro</span></span>
     </a>
     <nav aria-label="Разделы">
-      <a href="#/">Проверка</a>
+      <a href="#/">Главная</a>
+      <a href="#/check"><span class="pro">PRO</span>ВЕРКА</a>
       <a href="#/quiz">Тренировка</a>
       <a href="#/plans">Тарифы</a>
       <a href="#/account">Кабинет</a>
@@ -286,11 +359,92 @@
     <span class="status" id="backend" title="Какая модель отвечает">подключаюсь</span>
   </header>
 
+  <!-- ===================== страница: главная ===================== -->
+  <!-- История по прокрутке: появляется текст, цитаты подсвечиваются маркером,
+       барьеры отмечаются по одному. Внизу — переход в Проверку. -->
+  <div data-view="home" hidden>
+    <section class="home-hero">
+      <div>
+        <p class="label">Линтер для подозрительных сообщений</p>
+        <h1 class="home-title"><span class="wordmark">Verka<span class="tier" data-tier>pro</span></span></h1>
+        <p class="lead">Мошенник пишет так, чтобы вы не успели подумать. Verka разбирает сообщение
+          за секунды и показывает, где именно в нём обман.</p>
+        <p class="scroll-hint">Листайте вниз ↓</p>
+      </div>
+      <div class="verka-slot" data-cycle></div>
+    </section>
+
+    <section class="story" id="story">
+      <div class="story-pin">
+        <p class="label">Вам пишут</p>
+        <div class="message story-msg" id="story-msg"></div>
+        <ul class="markers story-markers" id="story-markers"></ul>
+      </div>
+    </section>
+
+    <section class="home-block reveal">
+      <p class="label">Каждая улика — с цитатой</p>
+      <h2 class="home-h">Не «фейк или нет», а где именно написан обман</h2>
+      <p class="lead">Цитату можно проверить глазами: она либо есть в тексте, либо нет. Модель
+        не может «почувствовать» мошенничество — она обязана его показать.</p>
+    </section>
+
+    <section class="home-block">
+      <p class="label reveal">Перепроверяем себя</p>
+      <h2 class="home-h reveal">Семь проверок, прежде чем ответить</h2>
+      <ul class="barriers home-steps" id="home-steps"></ul>
+    </section>
+
+    <section class="home-block home-split reveal">
+      <div class="verka-slot" data-state="distrust"></div>
+      <div>
+        <p class="label">Вывод и одно действие</p>
+        <p class="home-word w-distrust">Похоже на обман</p>
+        <p class="home-act">Перезвоните на старый номер из своих контактов</p>
+        <p class="muted">≈ 30 секунд. Мошенник контролирует новый номер, но не старый.</p>
+      </div>
+    </section>
+
+    <section class="home-block home-split reveal">
+      <div class="verka-slot" data-state="doubt"></div>
+      <div>
+        <p class="label">Не уверены — так и скажем</p>
+        <h2 class="home-h">Отказ — это функция, а не сбой</h2>
+        <p class="lead" style="margin-bottom:0">Когда улик недостаточно, Verka не гадает,
+          а даёт проверку, которую вы сделаете сами.</p>
+      </div>
+    </section>
+
+    <section class="home-block home-split reveal">
+      <div class="verka-slot" data-state="trust"></div>
+      <div>
+        <p class="label">Если всё чисто</p>
+        <h2 class="home-h">Класс — отвечайте спокойно</h2>
+        <p class="lead" style="margin-bottom:0">Приёмов манипуляции нет — Verka так и скажет.
+          Без паники на каждое «привет».</p>
+      </div>
+    </section>
+
+    <section class="home-end" id="home-end">
+      <p class="label">Ваша очередь</p>
+      <h2 class="home-h">Вставьте сообщение — Verka посмотрит</h2>
+      <div class="go-bar"><span id="go-bar"></span></div>
+      <p class="muted small" id="go-note">Долистайте до конца — откроем <span class="pro">PRO</span>ВЕРКУ</p>
+      <a class="btn primary" href="#/check">Проверить сейчас</a>
+      <div id="home-bottom" aria-hidden="true" style="height:1px"></div>
+    </section>
+  </div>
+
   <!-- ===================== страница: проверка ===================== -->
-  <div data-view="check">
-    <h1>Покажем, где в&nbsp;сообщении обман</h1>
-    <p class="lead">Вставьте подозрительное сообщение или голосовое. Мы не гадаем «фейк или нет» —
-      отмечаем приёмы цитатами из самого текста и даём одну проверку, которая снимает сомнение.</p>
+  <div data-view="check" hidden>
+    <div class="with-verka">
+      <div>
+        <h1>Покажем, где в&nbsp;сообщении обман</h1>
+        <p class="lead">Вставьте подозрительное сообщение или голосовое. Мы не гадаем «фейк или нет» —
+          отмечаем приёмы цитатами из самого текста и даём одну проверку, которая снимает сомнение.</p>
+      </div>
+      <div class="verka-slot" data-live></div>
+    </div>
 
     <section>
       <label for="text" class="label" style="display:block">Текст сообщения</label>
@@ -344,11 +498,14 @@
 
     <!-- результат -->
     <div id="result" hidden>
-      <section class="verdict" id="verdict">
-        <p class="label">Вывод</p>
-        <p class="word" id="verdict-word"></p>
-        <p class="why" id="verdict-why"></p>
-        <p class="seen muted" id="seen" hidden></p>
+      <section class="verdict with-verka" id="verdict">
+        <div>
+          <p class="label">Вывод</p>
+          <p class="word" id="verdict-word"></p>
+          <p class="why" id="verdict-why"></p>
+          <p class="seen muted" id="seen" hidden></p>
+        </div>
+        <div class="verka-slot" data-live></div>
       </section>
 
       <section>
@@ -476,7 +633,7 @@
       <p class="label">Ваши проверки</p>
       <div class="stats" id="acc-stats"></div>
       <ul class="history" id="acc-history"></ul>
-      <p class="muted" id="acc-empty">Пока пусто. <a href="#/">Проверьте первое сообщение</a> —
+      <p class="muted" id="acc-empty">Пока пусто. <a href="#/check">Проверьте первое сообщение</a> —
         оно появится здесь.</p>
       <div class="row" style="justify-content:flex-end">
         <button class="link" id="acc-clear" type="button">Очистить историю</button>
@@ -599,6 +756,7 @@ function humanTime(sec) {
 let liveTimer = null;
 function startLoading(first) {
   show("loading");
+  setVerka("checking");
   const steps = first ? [first, ...LIVE_STEPS] : LIVE_STEPS;
   $("steps-live").innerHTML = steps.map((n) =>
     `<li>${escapeHtml(NODE[n] ? NODE[n].name : n)}</li>`).join("");
@@ -613,6 +771,7 @@ function stopLoading() { clearInterval(liveTimer); }
 
 function showError(title, html) {
   show("error");
+  setVerka("idle");
   $("error-title").textContent = title;
   $("error-body").innerHTML = html;
 }
@@ -637,6 +796,7 @@ function explainError(err) {
 // ===================================================================
 function render(body, original) {
   show("result");
+  setVerka(verkaFor(body));
   const data = body.data || {};
   const markers = data.markers || [];
   renderVerdict(body, data, markers);
@@ -930,7 +1090,10 @@ const currentPlanId = () => { const id = store.load().plan; return OLD_PLAN[id] 
 const planById = (id) => PLANS.find((p) => p.id === (OLD_PLAN[id] || id))
   || PLANS.find((p) => p.id === DEFAULT_PLAN);
 // Тариф в шапке после названия: Verka pro.
-function renderTier() { $("tier").textContent = planById(currentPlanId()).name; }
+function renderTier() {
+  const name = planById(currentPlanId()).name;
+  document.querySelectorAll("#tier, [data-tier]").forEach((el) => { el.textContent = name; });
+}
 
 // Хранилище может быть недоступно (приватное окно, блокировка) — тогда
 // страница работает, просто ничего не запоминает.
@@ -1019,7 +1182,7 @@ function renderAccount() {
     <div><b>${count("doubt") + count("abstain")}</b><span class="muted small">с сомнением</span></div>`;
   $("acc-history").innerHTML = history.map((h, i) => `
     <li><span class="v ${h.verdict}">${VERDICT_SHORT[h.verdict] || h.verdict}</span>
-      <a href="#/" class="txt" data-history="${i}">${escapeHtml(h.text)}</a>
+      <a href="#/check" class="txt" data-history="${i}">${escapeHtml(h.text)}</a>
       <span class="when">${new Date(h.ts).toLocaleString("ru-RU",
         { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></li>`).join("");
   $("acc-empty").hidden = history.length > 0;
@@ -1028,7 +1191,7 @@ function renderAccount() {
 
 // Роутер на хэше. Хэш не уходит на сервер, поэтому api/server.py отдаёт
 // все страницы тем же маршрутом `/`.
-const VIEWS = { "": "check", quiz: "quiz", plans: "plans", account: "account" };
+const VIEWS = { "": "home", check: "check", quiz: "quiz", plans: "plans", account: "account" };
 function route() {
   const view = VIEWS[location.hash.replace(/^#\/?/, "")] || "check";
   document.querySelectorAll("[data-view]").forEach((el) => { el.hidden = el.dataset.view !== view; });
@@ -1041,11 +1204,190 @@ function route() {
   if (view === "check") renderUsage();
   renderTier();
   if (view === "quiz" && !quiz.items.length) quizStart();
+  homeActive(view === "home");
   window.scrollTo(0, 0);
 }
 
 // ===================================================================
-// 8. Запуск и обработчики.
+// 8. Аватар Verka. Одна SVG-картинка, все позы внутри; видимость — классами
+//    s-<состояние>, переключается атрибутом data-state (см. стили «аватар»).
+// ===================================================================
+const SKIN = "#f6dcc4", INK = "#1d1b18", SLEEVE = "#2c2925", TIFFANY = "#81D8D0";
+const VERKA_SVG = `
+<svg class="verka-svg" viewBox="0 -60 220 320" aria-hidden="true">
+  <circle cx="110" cy="140" r="104" style="fill:var(--verka-bg)"/>
+  <text class="s s-doubt qmark" x="176" y="44" font-size="48" font-weight="800" fill="${TIFFANY}"
+        stroke="${INK}" stroke-width="2" font-family="system-ui, sans-serif">?</text>
+  <path d="M54 260 Q56 168 110 156 Q164 168 166 260 Z" fill="${SLEEVE}"/>
+  <path d="M92 158 L110 176 L128 158" fill="none" stroke="${TIFFANY}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="122" y="198" width="22" height="22" rx="5" fill="${INK}" stroke="${TIFFANY}" stroke-width="2"/>
+  <rect x="126" y="207" width="14" height="5" rx="1" fill="${TIFFANY}"/>
+  <rect x="100" y="132" width="20" height="26" fill="#ecc9ab"/>
+  <g class="s s-idle s-trust s-doubt s-distrust">
+    <path d="M68 178 Q56 212 62 236" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <circle cx="62" cy="242" r="9" fill="${SKIN}"/>
+  </g>
+  <g class="s s-idle">
+    <path d="M152 178 Q164 212 158 236" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <circle cx="158" cy="242" r="9" fill="${SKIN}"/>
+  </g>
+  <g class="head">
+    <path d="M56 92 Q56 36 110 34 Q164 36 164 92 L166 138 Q150 146 140 132 L80 132 Q70 146 54 138 Z" fill="${INK}"/>
+    <ellipse cx="110" cy="96" rx="42" ry="46" fill="${SKIN}"/>
+    <path d="M66 90 Q66 46 110 44 Q154 46 154 90 Q142 70 122 72 Q108 60 92 74 Q78 76 66 90 Z" fill="${INK}"/>
+    <path d="M80 62 Q88 53 101 50" stroke="${TIFFANY}" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="84" cy="114" r="6" fill="#f1a395" opacity=".45"/>
+    <circle cx="136" cy="114" r="6" fill="#f1a395" opacity=".45"/>
+    <g class="s s-idle s-doubt"><g class="eyes">
+      <ellipse cx="94" cy="100" rx="5" ry="7" fill="${INK}"/><ellipse cx="126" cy="100" rx="5" ry="7" fill="${INK}"/>
+      <circle cx="96" cy="97" r="1.8" fill="#fff"/><circle cx="128" cy="97" r="1.8" fill="#fff"/></g></g>
+    <path class="s s-trust" d="M87 102 Q94 92 101 102 M119 102 Q126 92 133 102" stroke="${INK}" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <g class="s s-distrust">
+      <ellipse cx="94" cy="102" rx="5" ry="6" fill="${INK}"/><ellipse cx="126" cy="102" rx="5" ry="6" fill="${INK}"/>
+      <path d="M84 87 L102 94 M136 87 L118 94" stroke="${INK}" stroke-width="4" stroke-linecap="round"/></g>
+    <path class="s s-idle" d="M102 121 Q110 127 118 121" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path class="s s-trust" d="M96 116 Q110 136 124 116 Z" fill="${INK}"/>
+    <ellipse class="s s-distrust" cx="110" cy="124" rx="7" ry="8" fill="${INK}"/>
+    <path class="s s-doubt" d="M101 124 Q110 119 119 123" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path class="s s-checking" d="M104 124 Q110 127 116 124" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M58 96 A52 58 0 0 1 162 96" stroke="${TIFFANY}" stroke-width="6" fill="none"/>
+    <rect x="48" y="82" width="16" height="30" rx="7" fill="${TIFFANY}" stroke="${INK}" stroke-width="3"/>
+    <rect x="156" y="82" width="16" height="30" rx="7" fill="${TIFFANY}" stroke="${INK}" stroke-width="3"/>
+    <path d="M54 82 L44 56" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+    <circle class="led" cx="43" cy="53" r="5" fill="${TIFFANY}" stroke="${INK}" stroke-width="2"/>
+    <path d="M56 110 Q60 134 88 133" stroke="${INK}" stroke-width="3" fill="none"/>
+    <circle cx="90" cy="133" r="3.5" fill="${INK}"/>
+    <g class="s s-checking">
+      <path d="M70 182 Q68 142 86 122 M150 182 Q152 142 134 122" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
+      <circle cx="88" cy="118" r="9" fill="${SKIN}"/><circle cx="132" cy="118" r="9" fill="${SKIN}"/>
+      <rect x="72" y="84" width="32" height="28" rx="9" fill="${INK}"/><rect x="116" y="84" width="32" height="28" rx="9" fill="${INK}"/>
+      <rect x="102" y="91" width="16" height="10" rx="3" fill="${INK}"/>
+      <circle cx="88" cy="98" r="10" fill="${TIFFANY}"/><circle cx="132" cy="98" r="10" fill="${TIFFANY}"/>
+      <circle cx="84" cy="94" r="3" fill="#fff"/><circle cx="128" cy="94" r="3" fill="#fff"/>
+    </g>
+  </g>
+  <g class="s s-doubt">
+    <path d="M152 180 Q150 150 126 142" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <circle cx="120" cy="139" r="10" fill="${SKIN}"/>
+  </g>
+  <g class="s s-trust"><g class="thumb">
+    <path d="M152 178 Q176 152 176 126" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <circle cx="176" cy="116" r="12" fill="${SKIN}"/>
+    <rect x="171" y="90" width="10" height="20" rx="5" fill="${SKIN}"/>
+    <path d="M194 92 l7 -7 M198 108 l9 0" stroke="${TIFFANY}" stroke-width="3" stroke-linecap="round"/>
+  </g></g>
+  <g class="s s-distrust"><g class="sign-g">
+    <path d="M172 100 L146 4" stroke="#8a6a44" stroke-width="7" stroke-linecap="round"/>
+    <rect x="22" y="-54" width="176" height="60" rx="8" fill="#fbf8f2" stroke="${INK}" stroke-width="4"/>
+    <text x="110" y="-16" text-anchor="middle" font-size="21" font-weight="800" fill="#b23a2e"
+          font-family="system-ui, sans-serif">Галя, отмена!</text>
+    <path d="M154 180 Q174 144 172 108" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <circle cx="172" cy="100" r="11" fill="${SKIN}"/>
+  </g></g>
+</svg>`;
+
+const SAY = {
+  idle:     "Пришлите сообщение — посмотрю.",
+  checking: "Смотрю в оба…",
+  trust:    "Класс! Приёмов обмана нет.",
+  distrust: "Это обман. Не отвечайте.",
+  doubt:    "Хм… Лучше проверить.",
+};
+
+function setVerkaState(slot, s) {
+  slot.dataset.state = s;
+  const say = slot.querySelector(".verka-say");
+  if (say) say.textContent = SAY[s] || "";
+}
+function mountVerka() {
+  document.querySelectorAll(".verka-slot").forEach((slot) => {
+    slot.classList.add("verka");
+    slot.setAttribute("role", "img");
+    slot.setAttribute("aria-label", "Verka — помощник, который проверяет сообщение");
+    slot.innerHTML = VERKA_SVG + '<p class="verka-say"></p>';
+    setVerkaState(slot, slot.dataset.state || "idle");
+  });
+}
+// Живые аватары страницы «Проверка» повторяют ход проверки.
+function setVerka(s) {
+  document.querySelectorAll(".verka-slot[data-live]").forEach((slot) => setVerkaState(slot, s));
+}
+const verkaFor = (body) => !body.answered ? "doubt" : ((body.product || {}).assessment || "doubt");
+
+// ===================================================================
+// 9. Главная: текст появляется при прокрутке, цитаты подсвечиваются
+//    маркером по одной, барьеры отмечаются; внизу — переход в Проверку.
+//    Пример — настоящий ответ системы на s01 из набора.
+// ===================================================================
+const STORY = {
+  text: "Мам, привет, это я, телефон разбился, пишу с номера друга. Срочно нужно 15 000, потом всё объясню, переведи на эту карту 2202 **** 4411",
+  markers: [
+    { type: "new_contact", quote: "пишу с номера друга" },
+    { type: "urgency", quote: "Срочно нужно 15 000" },
+    { type: "money_request", quote: "переведи на эту карту" },
+  ],
+};
+const HOME_STEPS = ["route", "solve", "ground", "signals", "verify", "recall", "gate"];
+const home = { ready: false, active: false, cycle: null, goTimer: null };
+const GO_IDLE = 'Долистайте до конца — откроем <span class="pro">PRO</span>ВЕРКУ';
+const GO_RUN = 'Открываем <span class="pro">PRO</span>ВЕРКУ…';
+
+function homeInit() {
+  renderMessage(STORY.text, STORY.markers, true, $("story-msg"), $("story-markers"), null);
+  $("home-steps").innerHTML = HOME_STEPS.map((n) => `<li>
+      <span class="mark-ok">✓</span><span>${escapeHtml(NODE[n].name)}</span>
+      <span class="what">${escapeHtml(NODE[n].what)}</span>
+      <span class="who">${n === "solve" || n === "verify" ? "модель" : "код"}</span></li>`).join("");
+
+  const seen = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); seen.unobserve(e.target); }
+  }, { threshold: 0.25 });
+  document.querySelectorAll('[data-view="home"] .reveal').forEach((el) => seen.observe(el));
+  [...$("home-steps").children].forEach((li, i) => { li.style.transitionDelay = `${i * 120}ms`; seen.observe(li); });
+
+  // Конец страницы: метка в самом низу видна — через 2,5 с открываем Проверку,
+  // ушли выше — отменяем. Метка, а не весь блок: блок бывает выше экрана.
+  new IntersectionObserver(([e]) => {
+    clearTimeout(home.goTimer);
+    const go = e.isIntersecting && home.active;
+    $("go-bar").classList.toggle("run", go);
+    $("go-note").innerHTML = go ? GO_RUN : GO_IDLE;
+    if (go) home.goTimer = setTimeout(() => { if (home.active) location.hash = "#/check"; }, 2500);
+  }).observe($("home-bottom"));
+
+  window.addEventListener("scroll", homeScroll, { passive: true });
+  home.ready = true;
+}
+
+// Прокрутка внутри «истории»: доля пройденного → сколько цитат подсвечено.
+function homeScroll() {
+  if (!home.active) return;
+  const r = $("story").getBoundingClientRect();
+  const progress = Math.min(1, Math.max(0, -r.top / (r.height - innerHeight)));
+  const lit = Math.floor(progress * (STORY.markers.length + 1));
+  $("story-msg").querySelectorAll("mark").forEach((m) => m.classList.toggle("lit", Number(m.dataset.n) <= lit));
+  [...$("story-markers").children].forEach((li, i) => li.classList.toggle("lit", i < lit));
+}
+
+// Аватар в начале главной сам показывает, что умеет.
+const CYCLE = ["idle", "checking", "distrust", "checking", "trust", "checking", "doubt"];
+function homeActive(on) {
+  home.active = on;
+  clearInterval(home.cycle);
+  clearTimeout(home.goTimer);
+  if (!on) return;
+  if (!home.ready) homeInit();
+  $("go-bar").classList.remove("run");
+  $("go-note").innerHTML = GO_IDLE;
+  homeScroll();
+  const slot = document.querySelector(".verka-slot[data-cycle]");
+  let i = 0;
+  setVerkaState(slot, CYCLE[0]);
+  home.cycle = setInterval(() => setVerkaState(slot, CYCLE[++i % CYCLE.length]), 2200);
+}
+
+// ===================================================================
+// 10. Запуск и обработчики.
 // ===================================================================
 async function check() {
   const text = $("text").value;
@@ -1111,7 +1453,7 @@ $("text").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) check();
 });
 $("clear").addEventListener("click", () => {
-  $("text").value = ""; $("samples").value = ""; show("idle"); $("text").focus();
+  $("text").value = ""; $("samples").value = ""; show("idle"); setVerka("idle"); $("text").focus();
 });
 $("compare-btn").addEventListener("click", compare);
 linkHover($("message"), $("markers"));
@@ -1165,12 +1507,13 @@ $("acc-history").addEventListener("click", (e) => {
   const item = (store.load().history || [])[Number(link.dataset.history)];
   if (!item) return;
   $("text").value = item.text;
-  location.hash = "#/";
+  location.hash = "#/check";
   check();
 });
 $("acc-clear").addEventListener("click", () => { store.save({ history: [] }); renderAccount(); });
 window.addEventListener("hashchange", route);
 
+mountVerka();
 route();
 boot();
 </script>
