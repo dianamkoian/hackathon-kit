@@ -34,14 +34,14 @@
     --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --s1:8px; --s2:16px; --s3:32px; --s4:64px;
-    --logo-edge:transparent; --verka-bg:#efe8dc;
+    --logo-edge:transparent; --verka-bg:#efe8dc; --verka-hair:#1d1b18;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --paper:#151412; --ink:#f3efe7; --muted:#a39d92; --line:#2e2b27; --field:#1c1a17;
       --accent:#81D8D0; --accent-ink:#10201e; --mark:#24433f; --mark-ink:#dffaf6; --mark-hot:#3d6d68;
       --ok:#6fcf9f; --warn:#e5b65a; --bad:#f08072;
-      --logo-edge:#3a3631; --verka-bg:#2a2723;
+      --logo-edge:#3a3631; --verka-bg:#2a2723; --verka-hair:#4a4540;
     }
   }
 
@@ -269,6 +269,14 @@
   @keyframes eyeblink { 0%,92%,100% { transform:scaleY(1); } 95% { transform:scaleY(.1); } }
   @keyframes bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
   @keyframes wave { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg); } }
+  /* v2: голова чуть поворачивается, «зрачки» бегают по линзам, строка сканирует рамку */
+  .verka .head2 { transform-box:view-box; transform-origin:100px 140px; }
+  .verka[data-state="checking"] .head2 { animation:scan2 2s ease-in-out infinite; }
+  .verka .lens-dot { animation:look 1.2s ease-in-out infinite; }
+  .verka .scan { animation:sweep 1.6s linear infinite; }
+  @keyframes scan2 { 0%,100% { transform:rotate(-3deg); } 50% { transform:rotate(3deg); } }
+  @keyframes look { 0%,100% { transform:translateX(-5px); } 50% { transform:translateX(5px); } }
+  @keyframes sweep { 0% { transform:translateY(0); } 100% { transform:translateY(128px); } }
   .with-verka { display:grid; grid-template-columns:minmax(0, 1fr) 200px; gap:var(--s3); align-items:center; }
   .verdict.with-verka { grid-template-columns:1fr 170px; }
 
@@ -304,7 +312,7 @@
   .go-bar span.run { width:100%; transition:width 2.5s linear; }
   .pro { font-family:var(--mono); font-weight:800; }
   @media (prefers-reduced-motion: reduce) {
-    .verka *, .reveal, .story-msg mark, .story-markers li, .home-steps li { animation:none !important; transition:none !important; }
+    .verka *, .verka .scan, .reveal, .story-msg mark, .story-markers li, .home-steps li { animation:none !important; transition:none !important; }
   }
 
   /* ---------- узкий экран ---------- */
@@ -1213,7 +1221,8 @@ function route() {
 //    s-<состояние>, переключается атрибутом data-state (см. стили «аватар»).
 // ===================================================================
 const SKIN = "#f6dcc4", INK = "#1d1b18", SLEEVE = "#2c2925", TIFFANY = "#81D8D0";
-const VERKA_SVG = `
+// v1 — мультяшная, в полный рост (до 25.10, 14:00). Оставлена, чтобы вернуться.
+const VERKA_SVG_V1 = `
 <svg class="verka-svg" viewBox="0 -60 220 320" aria-hidden="true">
   <circle cx="110" cy="140" r="104" style="fill:var(--verka-bg)"/>
   <text class="s s-doubt qmark" x="176" y="44" font-size="48" font-weight="800" fill="${TIFFANY}"
@@ -1285,6 +1294,67 @@ const VERKA_SVG = `
     <circle cx="172" cy="100" r="11" fill="${SKIN}"/>
   </g></g>
 </svg>`;
+
+// v2 — голова и плечи, минималистично и «цифрово»: глаза-индикаторы, рамка
+// фокуса, сканер вместо бинокля. Рук в кадре нет, поэтому «класс» — значок,
+// а табличка — на древке, уходящем за край кадра.
+const VERKA_SVG_V2 = `
+<svg class="verka-svg v2" viewBox="0 -44 200 244" aria-hidden="true">
+  <circle cx="100" cy="100" r="92" style="fill:var(--verka-bg)"/>
+  <g class="s s-distrust"><g class="sign-g">
+    <path d="M150 200 L138 -6" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+    <rect x="24" y="-40" width="152" height="36" rx="4" fill="#fbf8f2" stroke="${INK}" stroke-width="2.5"/>
+    <text x="100" y="-16" text-anchor="middle" font-size="16" font-weight="800" fill="#b23a2e"
+          font-family="ui-monospace, Consolas, monospace">Галя, отмена!</text>
+  </g></g>
+  <path d="M30 200 Q32 152 100 144 Q168 152 170 200 Z" style="fill:var(--verka-hair)"/>
+  <path d="M80 150 L100 166 L120 150" fill="none" stroke="${TIFFANY}" stroke-width="2"/>
+  <rect x="91" y="116" width="18" height="32" fill="#e3c4aa"/>
+  <g class="head2">
+    <path d="M54 130 L54 72 Q54 30 100 28 Q146 30 146 72 L146 130 L128 130 L128 96 L72 96 L72 130 Z" style="fill:var(--verka-hair)"/>
+    <rect x="64" y="42" width="72" height="82" rx="30" fill="#efd6c0"/>
+    <path d="M62 72 L66 46 Q100 22 134 46 L138 72 L120 58 L98 66 L80 56 Z" style="fill:var(--verka-hair)"/>
+    <path d="M68 62 L80 52 L96 60" fill="none" stroke="${TIFFANY}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <g class="s s-idle"><g class="eyes">
+      <rect x="80" y="79" width="14" height="6" rx="3" fill="${INK}"/><rect x="106" y="79" width="14" height="6" rx="3" fill="${INK}"/></g></g>
+    <path class="s s-idle" d="M94 104 L106 104" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
+    <path class="s s-trust" d="M80 85 Q87 77 94 85 M106 85 Q113 77 120 85" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path class="s s-trust" d="M91 100 Q100 109 109 100" stroke="${INK}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path class="s s-distrust" d="M80 78 L94 84 M106 84 L120 78" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>
+    <rect class="s s-distrust" x="95" y="100" width="10" height="6" rx="2" fill="${INK}"/>
+    <g class="s s-doubt">
+      <rect x="80" y="81" width="14" height="4" rx="2" fill="${INK}"/><rect x="108" y="80" width="10" height="5" rx="2" fill="${INK}"/>
+      <path d="M106 71 L120 67" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M94 105 L107 102" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+    <g class="s s-checking">
+      <rect x="76" y="73" width="22" height="16" rx="5" fill="${INK}" stroke="${TIFFANY}" stroke-width="2.5"/>
+      <rect x="102" y="73" width="22" height="16" rx="5" fill="${INK}" stroke="${TIFFANY}" stroke-width="2.5"/>
+      <path d="M98 81 L102 81" stroke="${TIFFANY}" stroke-width="2.5"/>
+      <g class="lens-dot"><circle cx="87" cy="81" r="3" fill="${TIFFANY}"/><circle cx="113" cy="81" r="3" fill="${TIFFANY}"/></g>
+      <path d="M95 104 L105 104" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+    <path d="M58 76 A42 46 0 0 1 142 76" stroke="${TIFFANY}" stroke-width="3" fill="none"/>
+    <circle cx="58" cy="84" r="8" fill="${INK}" stroke="${TIFFANY}" stroke-width="2"/>
+    <circle class="led" cx="58" cy="84" r="2.5" fill="${TIFFANY}"/>
+    <path d="M58 92 Q62 108 84 108" stroke="${TIFFANY}" stroke-width="1.5" fill="none"/>
+  </g>
+  <path d="M40 18 L40 6 L52 6 M148 6 L160 6 L160 18 M160 128 L160 140 L148 140 M52 140 L40 140 L40 128"
+        fill="none" stroke="${TIFFANY}" stroke-width="2.5" stroke-linecap="square"/>
+  <rect class="s s-checking scan" x="40" y="10" width="120" height="2" fill="${TIFFANY}" opacity=".8"/>
+  <g class="s s-trust"><g class="thumb">
+    <circle cx="152" cy="122" r="17" fill="${TIFFANY}" stroke="${INK}" stroke-width="2"/>
+    <rect x="142" y="118" width="19" height="15" rx="4" fill="${INK}"/>
+    <rect x="143" y="104" width="7" height="18" rx="3.5" fill="${INK}"/>
+    <path d="M152 122.5 H160 M152 126.5 H160 M152 130.5 H160" stroke="${TIFFANY}" stroke-width="1.5"/>
+  </g></g>
+  <text class="s s-doubt qmark" x="150" y="40" font-size="30" font-weight="800" fill="${TIFFANY}"
+        stroke="${INK}" stroke-width="1.5" font-family="ui-monospace, Consolas, monospace">?</text>
+</svg>`;
+
+// Какую Verka показывать: "v2" — голова и плечи, "v1" — прежняя мультяшная.
+const VERKA_STYLE = "v2";
+const VERKA_SVG = VERKA_STYLE === "v1" ? VERKA_SVG_V1 : VERKA_SVG_V2;
 
 const SAY = {
   idle:     "Пришлите сообщение — посмотрю.",
