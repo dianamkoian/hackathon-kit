@@ -165,7 +165,13 @@ def present(data: Any) -> dict:
     if not isinstance(data, dict):
         return {"assessment": "doubt", "check": check_card(ABSTAIN_CHECK_ID),
                 "abstained": True}
-    return {"assessment": data.get("assessment"),
+    # «Признаков не найдено» — не то же самое, что «сомневаюсь». Если валить их
+    # в одно состояние, продукт выглядит так, будто подозревает даже «привет»,
+    # и человек перестаёт верить предупреждениям вообще. Но и «всё чисто»
+    # сказать нельзя: отсутствие улик не доказательство невиновности.
+    no_markers = not data.get("markers")
+    state = "clean" if no_markers else data.get("assessment", "doubt")
+    return {"assessment": data.get("assessment"), "state": state,
             "check": check_card(data.get("check_id")), "abstained": False}
 
 

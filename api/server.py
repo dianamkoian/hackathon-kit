@@ -123,8 +123,8 @@ def run_endpoint(req: RunRequest) -> dict:
             # не доказательство невиновности, и говорить надо именно так.
             fallback = {
                 "markers": [], "assessment": "doubt", "check_id": "C00",
-                "explanation": "наблюдаемых признаков не найдено; модель недоступна, "
-                               "поэтому вердикт не выносим",
+                "explanation": "приёмов манипуляции в тексте не найдено. "
+                               "Это не гарантия: мы проверяем приёмы, а не факты",
             }
         _store.save(
             text=req.text, status="mechanical",
