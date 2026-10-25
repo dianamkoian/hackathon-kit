@@ -101,6 +101,12 @@ SYSTEM = (
     f"Каталог проверок:\n{_catalog()}"
 )
 
+MARKER_TYPES = (
+    "money_request", "urgency", "new_contact", "authority", "secrecy",
+    "code_request", "external_link", "prepayment", "too_good",
+    "unverifiable_proof", "remote_access",
+)
+
 VERIFIER_SYSTEM = (
     "Ты проверяешь чужой разбор подозрительного сообщения. Ты его не писал и не "
     "заинтересован в нём. «Подходящее утверждение» здесь — любой фрагмент "
@@ -170,6 +176,9 @@ SPEC = TaskSpec(
     schema=SCHEMA,
     verifier_system=VERIFIER_SYSTEM,
     quote_fields=("markers[].quote",),
+    # Пропуском считается только приём из этого списка. Без него проверяющая
+    # модель записывает в пропуски «Добрый день!» и продукт молчит.
+    omission_types=MARKER_TYPES,
     source_field="text",
     router=route,
     grade=grade,
@@ -245,7 +254,7 @@ def make_mock_handler(cases: list[dict]):
         answer_quotes = {_norm(m.get("quote", "")) for m in candidate.get("markers", [])
                          if isinstance(m, dict)}
         missing = [q for q in expected_quotes if _norm(q) not in answer_quotes]
-        base = {"found_in_source": expected_quotes, "missing_from_answer": missing}
+        base = {"found_in_source": expected_quotes, "overlooked": missing}
         if grade(case["expected"], candidate):
             return json.dumps({**base, "verdict": "pass", "confidence": 0.88,
                                "reason": "оценка и проверка опираются на найденные маркеры"},

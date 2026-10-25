@@ -33,6 +33,16 @@ class TaskSpec:
     quote_fields: tuple[str, ...] = ()
     # Which key of `fields` holds the text quotes are checked against.
     source_field: str | None = None
+    # Что вообще может считаться пропуском. Пустой кортеж = любой текст, и
+    # тогда проверяющая модель объявляет пропуском «Добрый день!», а код честно
+    # отказывается отвечать. Домен обязан назвать свой словарь.
+    omission_types: tuple[str, ...] = ()
+    # Запрещать ли ответ из-за пропуска. Последствие пропуска зависит от задачи:
+    # пропущенное обязательство — это неверно поставленная человеку задача, и там
+    # вето уместно. Пропущенный один приём манипуляции из пяти — всё ещё полезный
+    # ответ, и глушить его нельзя. Замерено: с вето модель на 7B отказывается
+    # отвечать и на мошенническом тексте, и на безобидном.
+    omission_is_veto: bool = False
     # Tier the verifier runs on. Cheap by default and deliberately so: judging a
     # finished answer is easier than producing one, and a verifier on the strong
     # tier costs as much as the answer it is checking — which wipes out the

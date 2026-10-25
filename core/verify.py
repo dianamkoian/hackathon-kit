@@ -73,10 +73,19 @@ def check_quotes(data: Any, source_text: str, fields: tuple[str, ...]) -> list[s
 # выписала, что видит в источнике, ей нечем заметить пропуск.
 _VERIFIER_SCHEMA = {
     "type": "object",
-    "required": ["found_in_source", "missing_from_answer", "verdict", "confidence", "reason"],
+    "required": ["found_in_source", "overlooked", "verdict", "confidence", "reason"],
     "properties": {
         "found_in_source": {"type": "array", "items": {"type": "string"}},
-        "missing_from_answer": {"type": "array", "items": {"type": "string"}},
+        # Пропуск обязан назвать свой тип: это единственное, чем код может
+        # отличить настоящий пропуск от вежливого приветствия.
+        "overlooked": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["type", "quote"],
+                "properties": {"type": {"type": "string"}, "quote": {"type": "string"}},
+            },
+        },
         "verdict": {"type": "string", "enum": ["pass", "fail"]},
         "confidence": {"type": "number"},
         "reason": {"type": "string"},
@@ -84,33 +93,51 @@ _VERIFIER_SCHEMA = {
 }
 
 
-def _real_omissions(claimed, spec, data) -> list[str]:
-    """Отсеивает мнимые пропуски.
+def _real_omissions(claimed, spec, data, source_text: str = "") -> list[str]:
+    """Отсеивает мнимые пропуски тремя механическими проверками.
 
-    Решающая модель часто цитирует шире, чем проверяющая: «скрипт готов, я
-    запущу его завтра» против «я запущу его завтра». Проверяющая сверяет
-    строки и объявляет своё короткое цитирование пропущенным, хотя
-    обязательство в ответе есть.
+    Проверяющая модель охотно записывает в пропуски что угодно: вежливое
+    приветствие, кусок уже найденной цитаты, собственную догадку. Если считать
+    провалом любой непустой список, система отказывается отвечать почти на всё
+    настоящее — проверено на живой модели.
 
-    Сверку делает код, а не модель: пересекается ли заявленный пропуск хоть
-    с одной цитатой в ответе. Перечислять модель умеет, аккуратно сверять
-    строки — нет.
+    Поэтому решает код, а не модель. Пропуск засчитывается, только если:
+      1. он назвал тип из словаря домена — а не «Добрый день!»;
+      2. цитата дословно есть в исходном тексте — не выдумана;
+      3. она не пересекается с цитатами, которые в ответе уже есть, — модели
+         цитируют разными границами, и расхождение границ не пропуск.
     """
+    allowed = {t.casefold() for t in getattr(spec, "omission_types", ())}
     present = [
         _normalize(value)
         for field in spec.quote_fields
         for _, value in resolve_path(data, field)
         if isinstance(value, str) and value.strip()
     ]
+    haystack = _normalize(source_text)
 
     real: list[str] = []
     for item in claimed:
-        text = _normalize(str(item))
+        if isinstance(item, dict):
+            kind = str(item.get("type", "")).strip().casefold()
+            quote = str(item.get("quote", "")).strip()
+        else:
+            kind, quote = "", str(item).strip()
+
+        text = _normalize(quote)
         if not text:
             continue
-        if any(text in quote or quote in text for quote in present):
-            continue  # обязательство в ответе есть, разошлись только границы цитаты
-        real.append(str(item))
+        if allowed and kind not in allowed:
+            continue  # не приём манипуляции, а просто фраза из сообщения
+        if haystack and text not in haystack:
+            continue  # цитаты нет в источнике — проверяющая её выдумала
+        if any(text in q or q in text for q in present):
+            continue  # то же самое другими границами цитаты
+        if haystack and len(text) > 0.6 * len(haystack):
+            # Приём — это фрагмент сообщения, а не всё сообщение. Когда модель
+            # «цитирует» текст целиком, она не нашла приём, а пересказала вход.
+            continue
+        real.append(f"{kind or '?'}: {quote}")
     return real
 
 
@@ -125,9 +152,14 @@ def verify_with_model(provider, *, spec, fields: dict, data: Any, tier: str, tra
         "1. `found_in_source`: quote EVERY statement in the input above that "
         "qualifies, working through the input from start to end. Do this before "
         "you look at the candidate answer again.\n"
-        "2. `missing_from_answer`: list the ones from step 1 that the candidate "
-        "answer does not contain. An answer that stops after the first item is "
-        "the most common failure — check the end of the input specifically.\n"
+        "2. `overlooked`: the entries from step 1 that are PRESENT in the input "
+        "but ABSENT from the candidate answer. Each entry needs a `type` from "
+        "this list — " + ", ".join(getattr(spec, "omission_types", ()) or ["—"])
+        + " — AND a non-empty `quote` copied from the input.\n"
+        "   This is NOT a checklist of types that do not occur. Do not list a "
+        "type just because the input lacks it. If the candidate answer already "
+        "covers everything you found, return an empty list. Greetings, "
+        "signatures and neutral sentences are never entries here.\n"
         "3. `verdict`, `confidence` (0 to 1), `reason`.\n"
         "Be strict: plausible but unsupported is a fail."
     )
@@ -147,20 +179,39 @@ def verify_with_model(provider, *, spec, fields: dict, data: Any, tier: str, tra
     # the range, never the value, so miscalibration stays visible in the eval.
     confidence = min(max(confidence, 0.0), 1.0)
 
-    passed = verdict["verdict"] == "pass"
+    # Булев вердикт модели НЕ право вето: он лишь снижает уверенность.
+    # Замерено на Qwen 7B: модели, которой сказано «будь строгой», проще
+    # ответить «не годится» почти на всё, и продукт замолкает. Решение принимает
+    # откалиброванный порог по непрерывной уверенности — ради этого калибровка
+    # и делалась. Булев ответ модели калиброванным не бывает.
     reason = verdict["reason"]
+    if verdict["verdict"] != "pass":
+        confidence *= 0.6
+    passed = True
 
     # The consequence of an omission is enforced in code, not left to the model.
     # Measured: a verifier asked only for a verdict calls an answer "an exact
     # match" while a whole item is missing from it. Asking it to enumerate what
     # is absent is what makes the omission visible; refusing to pass a non-empty
     # list is what makes it matter.
-    missing = _real_omissions(verdict.get("missing_from_answer", []), spec, data)
+    source_text = fields.get(spec.source_field, "") if spec.source_field else ""
+    missing = _real_omissions(
+        verdict.get("overlooked", []), spec, data, source_text
+    )
     if missing:
-        passed = False
-        confidence = min(confidence, 0.3)
+        if getattr(spec, "omission_is_veto", False):
+            passed = False
+            confidence = min(confidence, 0.3)
+        else:
+            # Пропуск снижает уверенность, но не запрещает ответ: решает порог,
+            # а он откалиброван под долю ошибок. Модель не должна иметь права
+            # вето — она для этого недостаточно надёжна.
+            confidence *= 0.75 ** len(missing)
         reason = f"пропущено: {'; '.join(str(m)[:60] for m in missing[:3])}"
 
     trace.add("recall", not missing,
-              detail="ничего не пропущено" if not missing else f"пропусков: {len(missing)}")
+              detail="ничего не пропущено" if not missing
+              else f"пропусков: {len(missing)}"
+                   + ("" if getattr(spec, "omission_is_veto", False)
+                      else f", уверенность снижена до {confidence:.2f}"))
     return passed, confidence, reason
