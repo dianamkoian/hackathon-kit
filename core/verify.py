@@ -508,9 +508,18 @@ _URGENCY_PHRASE = re.compile(
     r"иначе\s+(?:счёт|счет|аккаунт|карта|доступ)\w*\s+(?:будет\s+)?"
     r"(?:заблокир|закр|удал)\w*)",
     re.IGNORECASE)
+# Завышенная оплата: слова про работу рядом с обещанием суммы. По отдельности
+# ни то, ни другое не признак — вместе это самая частая схема в корпусе.
+_TOO_GOOD_PHRASE = re.compile(
+    r"(?:заработок|доход|оплата|зарплата|\bзп\b|прибыль|ставка|выплат\w*)"
+    r"[^.!?\n]{0,30}?(?:от|до)\s*\d[\d\s]{2,}"
+    r"|(?:от|до)\s*\d[\d\s]{2,}\s*(?:р|руб|₽|тыс|к|\$|бакс\w*)?\s*(?:в|за)\s*"
+    r"(?:день|час|сутки|неделю|смену|месяц)",
+    re.IGNORECASE)
 _NEW_CONTACT_PHRASE = re.compile(
-    r"(?:у меня новый номер|это мой новый номер|пишу с (?:другого|чужого|нового) "
-    r"(?:номера|телефона)|новый аккаунт|телефон (?:разбился|украли|потерял)\w*)",
+    r"(?:(?:у меня |это мой )?новый номер|пишу с (?:другого|чужого|нового) "
+    r"(?:номера|телефона)|нов(?:ый|ая) (?:аккаунт|сим|симка)|"
+    r"телефон (?:разбился|украли|потерял|слома)\w*|старый номер не работает)",
     re.IGNORECASE)
 
 
@@ -519,7 +528,8 @@ def _phrase_signals(text: str) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for kind, pattern in (("money_phrase", _MONEY_PHRASE),
                           ("urgency_phrase", _URGENCY_PHRASE),
-                          ("new_contact_phrase", _NEW_CONTACT_PHRASE)):
+                          ("new_contact_phrase", _NEW_CONTACT_PHRASE),
+                          ("too_good_phrase", _TOO_GOOD_PHRASE)):
         for m in pattern.finditer(text):
             found.append({"kind": kind, "quote": m.group(0).strip(),
                           "start": m.start(), "end": m.end()})
@@ -594,7 +604,11 @@ if __name__ == "__main__":
         checked += 1
 
     # Cards: grouped, masked, solid with Luhn; not three groups, not a last-four mention.
-    expect(kinds("переведи на эту карту 2202 **** 4411"), [("card_number", "2202 **** 4411")])
+    # Словесный детектор видит и саму просьбу перевести, не только номер:
+    # это ожидание обновлено после добавления _MONEY_PHRASE.
+    expect(kinds("переведи на эту карту 2202 **** 4411"),
+           [("money_phrase", "переведи на эту карту 2202"),
+            ("card_number", "2202 **** 4411")])
     expect(kinds("карта 2202-2063-1234-5676."), [("card_number", "2202-2063-1234-5676")])
     expect(kinds("номер 4276380012345679 сбер"), [("card_number", "4276380012345679")])
     expect(kinds("заказ 4276380012345671"), [])  # 16 digits, Luhn fails: an order number

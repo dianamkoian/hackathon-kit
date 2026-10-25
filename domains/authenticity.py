@@ -295,6 +295,7 @@ _SIGNAL_TO_MARKER = {
     "money_phrase": "money_request",
     "urgency_phrase": "urgency",
     "new_contact_phrase": "new_contact",
+    "too_good_phrase": "too_good",
 }
 
 # Сигналы, каждый из которых сам по себе — основание не доверять сообщению.

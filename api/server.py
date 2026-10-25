@@ -17,9 +17,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.pipeline import confidence_floor, run, run_baseline
+from core.articles import ARTICLES, BY_SLUG
 from core.deadline import DeadlineRunner
 from core.profile import Profile, clarifying_question, missing_context
 from core.safeword import SafeWord, prompt_for
+from core.schemes import SCHEMES, identify
 from core.store import Store
 from core.providers import get_provider
 import api.ollama  # noqa: F401 — registers LLM_BACKEND=ollama (local models on Windows)
@@ -139,6 +141,8 @@ def run_endpoint(req: RunRequest) -> dict:
                 "reason": quick["explanation"], "tier_used": "mechanical",
                 "product": present(quick),
                 "safeword": prompt_for(_safeword, quick.get("markers")),
+                "scheme": (lambda sc: sc.to_dict() if sc else None)(
+                    identify(quick.get("markers"), req.text)),
                 "question": (lambda q: q.to_dict() if q else None)(
                     clarifying_question(quick.get("markers"), req.text, _profile)),
                 "trace": {"task_id": "mechanical", "cost_usd": 0.0,
@@ -184,6 +188,8 @@ def run_endpoint(req: RunRequest) -> dict:
             "reason": f"{fallback['explanation']} ({exc})",
             "tier_used": "mechanical", "product": present(fallback),
             "safeword": prompt_for(_safeword, fallback.get("markers")),
+            "scheme": (lambda sc: sc.to_dict() if sc else None)(
+                identify(fallback.get("markers"), req.text)),
             "question": (lambda q: q.to_dict() if q else None)(
                 clarifying_question(fallback.get("markers"), req.text, _profile)),
             "trace": {"task_id": "mechanical", "cost_usd": 0.0,
@@ -207,7 +213,9 @@ def run_endpoint(req: RunRequest) -> dict:
             **result.to_dict(), "product": present(result.data),
             "safeword": prompt_for(_safeword, data_markers),
             "question": (lambda q: q.to_dict() if q else None)(
-                clarifying_question(data_markers, req.text, _profile))}
+                clarifying_question(data_markers, req.text, _profile)),
+            "scheme": (lambda sc: sc.to_dict() if sc else None)(
+                identify(data_markers, req.text))}
 
 
 @app.post("/run-audio")
@@ -295,6 +303,26 @@ def get_safeword() -> dict:
     return _safeword.to_dict() if _safeword else {"person": None, "question": None}
 
 
+@app.get("/articles")
+def articles() -> list[dict]:
+    """Короткие статьи: как различать обман. Работают до паники, а не в ней."""
+    return [a.short() for a in ARTICLES]
+
+
+@app.get("/articles/{slug}")
+def article(slug: str) -> dict:
+    found = BY_SLUG.get(slug)
+    if found is None:
+        raise HTTPException(status_code=404, detail="такой статьи нет")
+    return found.to_dict()
+
+
+@app.get("/schemes")
+def schemes() -> list[dict]:
+    """Справочник схем: как устроена, по чему узнаётся, что её ломает."""
+    return [s.to_dict() for s in SCHEMES]
+
+
 @app.get("/training")
 def training(n: int = 10) -> list[dict]:
     """Настоящие сообщения для тренировки, без подсказки о правильном ответе."""
@@ -315,11 +343,15 @@ def training_check(req: dict) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail="такого примера нет")
     guess = str(req.get("guess", "")).strip().casefold()
+    scheme = identify(row.get("markers"), row["text"])
     return {
         "id": row["id"], "truth": row["truth"],
         "correct": guess == row["truth"].casefold(),
         "markers": row.get("markers", []),
         "text": row["text"],
+        # Тренажёр, который говорит только «верно», учит угадывать. Чтобы
+        # человек научился, он должен узнать схему целиком.
+        "scheme": scheme.to_dict() if scheme else None,
     }
 
 
