@@ -352,6 +352,82 @@ def get_safeword() -> dict:
     return _safeword.to_dict() if _safeword else {"person": None, "question": None}
 
 
+@app.post("/run-image")
+async def run_image(file: UploadFile = File(...)) -> dict:
+    """Скриншот переписки: снимаем текст и дальше тем же путём, что и набранный.
+
+    Самый частый способ переслать подозрительное сообщение — скриншот. Модель
+    локальная: снимок переписки может содержать что угодно, отправлять его
+    наружу незачем.
+    """
+    import tempfile
+
+    from core.vision import read_text
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="пустой файл")
+    if len(raw) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="файл больше 15 МБ")
+
+    suffix = Path(file.filename or "image.png").suffix or ".png"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(raw)
+        tmp_path = Path(tmp.name)
+    try:
+        seen = read_text(tmp_path)
+    except ImportError as exc:
+        raise HTTPException(status_code=503,
+                            detail=f"чтение картинок недоступно: {exc}") from None
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422,
+                            detail=f"не удалось прочитать картинку: {exc}") from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    if not seen.text.strip():
+        raise HTTPException(status_code=422, detail="на картинке не нашлось текста")
+
+    body = run_endpoint(RunRequest(text=seen.text))
+    body["seen_on_image"] = {"text": seen.text, "latency_ms": round(seen.latency_ms),
+                             "model": seen.model}
+    return body
+
+
+@app.post("/run-file")
+async def run_file(file: UploadFile = File(...)) -> dict:
+    """Текстовый файл: письмо, выгрузка переписки, сохранённое сообщение.
+
+    Третий вид материала из темы — после набранного текста и записи. Ничего
+    особенного здесь нет: читаем и отправляем тем же путём.
+    """
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="пустой файл")
+    if len(raw) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="файл больше 2 МБ")
+
+    text = ""
+    for encoding in ("utf-8", "cp1251", "utf-16"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if not text.strip():
+        raise HTTPException(status_code=422,
+                            detail="не удалось прочитать файл как текст")
+
+    # Очень длинные выгрузки обрезаем: разбор рассчитан на одно сообщение,
+    # а не на архив переписки — и честнее сказать это, чем молча взять начало.
+    limit = 4000
+    truncated = len(text) > limit
+    body = run_endpoint(RunRequest(text=text[:limit]))
+    body["from_file"] = {"name": file.filename, "chars": len(text),
+                         "truncated": truncated}
+    return body
+
+
 @app.get("/articles")
 def articles() -> list[dict]:
     """Короткие статьи: как различать обман. Работают до паники, а не в ней."""
