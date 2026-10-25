@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Второе мнение">
+  <!-- Г3 «Терминал»: окно, приглашение командной строки, подсвеченная строка -->
+  <rect x="4" y="4" width="112" height="112" rx="26" fill="#1d1b18"/>
+  <circle cx="26" cy="24" r="4" fill="#6f6a62"/><circle cx="40" cy="24" r="4" fill="#6f6a62"/><circle cx="54" cy="24" r="4" fill="#6f6a62"/>
+  <path d="M20 52l10 8-10 8" fill="none" stroke="#81D8D0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="38" y="49" width="60" height="22" rx="4" fill="#81D8D0"/>
+  <path d="M45 60h30" stroke="#1d1b18" stroke-width="7" stroke-linecap="round"/>
+  <path d="M24 88h40" stroke="#6f6a62" stroke-width="7" stroke-linecap="round"/>
+</svg>

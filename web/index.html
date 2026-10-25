@@ -22,7 +22,7 @@
        тренировка → тарифы и кабинет → запуск
   Формат ответа сервера не меняем: на него завязаны проверки и примеры.
 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cpath d='M14 22h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10H40l-16 14V72h-10A10 10 0 0 1 4 62V32a10 10 0 0 1 10-10z' fill='%23fbf8f2' stroke='%231d1b18' stroke-width='7' stroke-linejoin='round'/%3E%3Cpath d='M50 44h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10h-10v14L80 94H50a10 10 0 0 1-10-10V54a10 10 0 0 1 10-10z' fill='%2381D8D0' stroke='%231d1b18' stroke-width='7' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="%D0%92%D1%82%D0%BE%D1%80%D0%BE%D0%B5 %D0%BC%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5"%3E%3Crect x="4" y="4" width="112" height="112" rx="26" fill="%231d1b18"/%3E%3Ccircle cx="22" cy="38" r="3.5" fill="%236f6a62"/%3E%3Ccircle cx="22" cy="60" r="3.5" fill="%2381D8D0"/%3E%3Ccircle cx="22" cy="82" r="3.5" fill="%236f6a62"/%3E%3Cpath d="M38 38h48" stroke="%236f6a62" stroke-width="7" stroke-linecap="round"/%3E%3Crect x="31" y="49" width="70" height="22" rx="4" fill="%2381D8D0"/%3E%3Cpath d="M38 60h34" stroke="%231d1b18" stroke-width="7" stroke-linecap="round"/%3E%3Crect x="80" y="51" width="9" height="18" fill="%231d1b18"/%3E%3Cpath d="M38 82h28" stroke="%236f6a62" stroke-width="7" stroke-linecap="round"/%3E%3C/svg%3E">
 <style>
   /* ---------- 1. токены ---------- */
   :root {
@@ -33,12 +33,14 @@
     --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --s1:8px; --s2:16px; --s3:32px; --s4:64px;
+    --logo-edge:transparent;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --paper:#151412; --ink:#f3efe7; --muted:#a39d92; --line:#2e2b27; --field:#1c1a17;
       --accent:#81D8D0; --accent-ink:#10201e; --mark:#24433f; --mark-ink:#dffaf6; --mark-hot:#3d6d68;
       --ok:#6fcf9f; --warn:#e5b65a; --bad:#f08072;
+      --logo-edge:#3a3631;
     }
   }
 
@@ -62,7 +64,8 @@
            margin-bottom:var(--s4); }
   .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
   .brand svg { width:40px; height:40px; flex:none; }
-  .brand span { font:700 22px/1 var(--serif); letter-spacing:-.02em; }
+  /* Знак и подпись — гротеском, а не антиквой: антиква в логотипе читалась как СМИ. */
+  .brand span { font:700 21px/1 var(--sans); letter-spacing:-.03em; }
   nav { display:flex; gap:var(--s3); flex-wrap:wrap; align-items:center; }
   nav a { font-size:12px; letter-spacing:.12em; text-transform:uppercase; text-decoration:none;
           color:var(--muted); padding:6px 0; }
@@ -257,11 +260,15 @@
   <header>
     <a class="brand" href="#/" aria-label="Второе мнение — на главную">
       <svg id="logo" viewBox="0 0 120 120" aria-hidden="true">
-        <path d="M14 22h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10H40l-16 14V72h-10A10 10 0 0 1 4 62V32a10 10 0 0 1 10-10z"
-              fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
-        <path d="M50 44h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10h-10v14L80 94H50a10 10 0 0 1-10-10V54a10 10 0 0 1 10-10z"
-              fill="#81D8D0" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
-        <path d="M62 69l9 9 18-19" fill="none" stroke="#1d1b18" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="4" y="4" width="112" height="112" rx="26" fill="#1d1b18" style="stroke:var(--logo-edge)" stroke-width="3"/>
+        <circle cx="22" cy="38" r="3.5" fill="#6f6a62"/>
+        <circle cx="22" cy="60" r="3.5" fill="#81D8D0"/>
+        <circle cx="22" cy="82" r="3.5" fill="#6f6a62"/>
+        <path d="M38 38h48" stroke="#6f6a62" stroke-width="7" stroke-linecap="round"/>
+        <rect x="31" y="49" width="70" height="22" rx="4" fill="#81D8D0"/>
+        <path d="M38 60h34" stroke="#1d1b18" stroke-width="7" stroke-linecap="round"/>
+        <rect x="80" y="51" width="9" height="18" fill="#1d1b18"/>
+        <path d="M38 82h28" stroke="#6f6a62" stroke-width="7" stroke-linecap="round"/>
       </svg>
       <span>Второе мнение</span>
     </a>
