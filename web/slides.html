@@ -49,6 +49,11 @@
   ul.caps b{display:block; font-size:18px; font-weight:600; margin-bottom:2px}
   ul.caps span{color:#555c63; font-size:15px; line-height:1.45}
 
+  table.rows td{padding:11px 10px; font-size:16px; line-height:1.45; vertical-align:top}
+  table.rows td:first-child{width:24%; font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+                            color:var(--muted); font-weight:500; padding-top:14px}
+  table.rows td b{font-weight:600}
+
   table{width:100%; border-collapse:collapse; margin:10px 0 6px; font-size:17px}
   th,td{text-align:left; padding:15px 10px; border-bottom:1px solid var(--line)}
   th{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:500}
@@ -66,6 +71,15 @@
        letter-spacing:.08em}
   .hint{position:fixed; left:22px; bottom:18px; font-size:12px; color:var(--muted)}
   @media(max-width:640px){ .deck{padding:5vh 7vw} td.big{font-size:26px} ul.caps{grid-template-columns:1fr} }
+  /* Печать в PDF (Cmd+P → «Сохранить как PDF»): все слайды, по одному на страницу */
+  @page{size:1280px 720px; margin:0}
+  @media print{
+    html,body{height:auto; overflow:visible}
+    .deck{display:block; height:auto; padding:0}
+    .slide{display:flex !important; flex-direction:column; justify-content:center; width:1280px; max-width:none;
+           height:720px; padding:56px 120px; page-break-after:always; break-after:page; animation:none}
+    .bar,.num,.hint{display:none}
+  }
 </style>
 </head>
 <body>
@@ -79,17 +93,40 @@
   </section>
 
   <section class="slide">
-    <p class="eyebrow">Проблема</p>
+    <p class="eyebrow">Проблема и актуальность</p>
     <h2>Доказательство подделать дешевле,<br>чем проверить</h2>
     <p class="lead">Скриншот рисуется за минуту. Голос подделывается за час.
        Письмо от банка выглядит как письмо от банка.</p>
     <hr>
     <p>Ответ «фейк» или «не фейк» <b>нельзя проверить</b> — остаётся снова
        верить на слово, просто теперь машине.</p>
+    <p class="note">Банк России, 2025 год: банки вернули пострадавшим лишь
+       <b>5,9%</b> украденного — 1,7 млрд ₽. Главный приём — социальная инженерия:
+       человека убеждают самого перевести деньги, перейти по ссылке или
+       установить программу. Источник: cbr.ru, «Обзор операций, совершённых без
+       добровольного согласия клиентов» за 2025 год.</p>
   </section>
 
   <section class="slide">
-    <p class="eyebrow">Чем мы не похожи на других</p>
+    <p class="eyebrow">Целевая аудитория</p>
+    <h2>Для кого</h2>
+    <ol class="points">
+      <li><b>Тот, кому только что написали</b>
+          <span>Подозрительное сообщение уже на руках, решать нужно за минуты,
+          а спросить некого.</span></li>
+      <li><b>Семьи и пожилые родители</b>
+          <span>«Мам, это я, телефон разбился» и «служба безопасности банка» бьют
+          именно по ним. Тариф pro — на семью до 5 человек, включая родителей.</span></li>
+      <li><b>Банки, операторы, сервисы</b>
+          <span>Проверка сообщений через API с полной трассировкой каждого
+          ответа — для своих клиентов.</span></li>
+    </ol>
+    <p class="note" style="margin-top:20px">Где встроить: кнопка «Проверить сообщение» в мессенджере,
+       разбор звонка в видеовстречах. Это гипотезы — переговоров с компаниями нет.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Оригинальность · чем мы не похожи на других</p>
     <h2>Улики вместо приговора</h2>
     <ol class="points">
       <li><b>Показываем, где именно в тексте обман</b>
@@ -132,9 +169,6 @@
           <span>Тренировка: 10 сообщений — решите сами, потом сравните
           с разбором.</span></li>
     </ul>
-    <p class="note" style="margin-top:22px">Тарифы: <b>lite</b> — бесплатно, 5 проверок в день ·
-       <b>pro</b> — 199 ₽/мес, семья до 5 человек · <b>enterprise</b> — API
-       с документацией <code>/docs</code>.</p>
   </section>
 
   <section class="slide">
@@ -153,6 +187,23 @@
     <hr>
     <p class="note">Часть приёмов не нужно угадывать — их видно. Ссылка в тексте
        либо есть, либо нет. На это не нужна нейросеть, нужен детектор.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Технический подход</p>
+    <h2>Стек</h2>
+    <table class="rows">
+      <tr><td>Модели</td><td><b>Qwen2.5 7B локально</b> — Ollama на ноутбуке с видеокартой (рабочая ссылка)
+          или MLX на Mac. Claude через API — сильный уровень, по желанию</td></tr>
+      <tr><td>Голос и скриншоты</td><td>Whisper через MLX на Mac · Tesseract.js прямо в браузере</td></tr>
+      <tr><td>Ядро</td><td>Python, стандартная библиотека: каскад, проверка схемы, сверка цитат,
+          детекторы, конформная калибровка порога отказа</td></tr>
+      <tr><td>API и данные</td><td>FastAPI + uvicorn · SQLite — хранилище проверок</td></tr>
+      <tr><td>Экран</td><td>Один HTML без фреймворков</td></tr>
+      <tr><td>Ссылка</td><td>Cloudflare Tunnel прямо с ноутбука</td></tr>
+      <tr><td>Качество</td><td><code>python3 -m evals.run</code> на 120 размеченных примерах ·
+          смоук и сверка чисел перед каждым пушем</td></tr>
+    </table>
   </section>
 
   <section class="slide">
@@ -189,6 +240,21 @@
   </section>
 
   <section class="slide">
+    <p class="eyebrow">Монетизация</p>
+    <h2>Базовая проверка — бесплатно всегда</h2>
+    <table class="rows">
+      <tr><td>lite · 0 ₽</td><td>Для себя: 5 проверок в день — вердикт, цитаты, проверка</td></tr>
+      <tr><td>pro · 199 ₽/мес</td><td>Семья до 5 человек, включая родителей: проверки без лимита,
+          сравнение с одной моделью</td></tr>
+      <tr><td>enterprise · по запросу</td><td>Банки, операторы, сервисы: API, полная трассировка
+          каждого ответа, отчёт о качестве на их данных, свой порог отказа</td></tr>
+    </table>
+    <p class="note" style="margin-top:20px">Человеку, которому прямо сейчас пишут мошенники, нельзя
+       показывать стену оплаты: бесплатные проверки кончились — проверка всё равно
+       выполнится. Цены — черновик команды, оплата в демо не подключена.</p>
+  </section>
+
+  <section class="slide">
     <p class="eyebrow">Где ломается</p>
     <h2>Называем сами</h2>
     <ol class="points">
@@ -206,14 +272,33 @@
 
   <section class="slide">
     <p class="eyebrow">Команда</p>
+    <h2>Кто что делал</h2>
+    <table class="rows">
+      <tr><td>Диана</td><td>Лид: ядро каскада, пороги и калибровка, данные и числа, первая версия колоды</td></tr>
+      <tr><td>Соня</td><td>Детекторы без модели, каталог проверок, разметка, скриншоты;
+          временный лид во второй половине дня</td></tr>
+      <tr><td>Саша</td><td>Экран и дизайн, логотип, тарифы и кабинет, тренировка</td></tr>
+      <tr><td>Дима</td><td>Бэкенд, рабочая ссылка, локальная модель на Windows, сбор настоящих сообщений</td></tr>
+      <tr><td>Карина</td><td>Упаковка: README, презентация, сверка чисел с прогоном</td></tr>
+    </table>
+    <p class="note" style="margin-top:20px">У каждого своя зона файлов — это видно по истории
+       коммитов: каждый коммитит под своим именем.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Использование ИИ</p>
     <h2>Пять человек<br>и пять ИИ-агентов в одном репозитории</h2>
-    <p class="lead">Агенты не слышат разговоров — они читают файлы. Поэтому
-       у каждого своя зона файлов, а задачи агенты ставят друг другу
-       <span class="accent">файлами команд</span>.</p>
-    <hr>
-    <p class="note">В истории видно: команда от одного агента к другому, ответ,
-       закрытие. Мы не просто пользовались ИИ — мы выстроили процесс, в котором
-       пять агентов не мешают друг другу.</p>
+    <ol class="points">
+      <li><b>У каждого свой агент — и общие правила</b>
+          <span>Агент пишет код и тексты только в зоне своего человека. Правила для всех —
+          в <code>CLAUDE.md</code> и <code>AGENTS.md</code>: чьи файлы, что нельзя, как проверять.</span></li>
+      <li><b>Агенты разговаривают файлами</b>
+          <span>Они не слышат людей — только читают репозиторий. За день: больше 30 заданий
+          друг другу, 12 вопросов, 8 решений с причинами и замерами.</span></li>
+      <li><b>Машина проверяет машину</b>
+          <span>Перед каждым пушем — смоук-тест и сверка чисел в README с прогоном.
+          Агент нашёл баг в схеме ответа, другой исправил: отказов стало 6 вместо 21.</span></li>
+    </ol>
   </section>
 
   <section class="slide">
