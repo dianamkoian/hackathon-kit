@@ -2,7 +2,7 @@
 
 **От:** Alexander Rosushchan
 **Кому:** диана (зона: core/pipeline.py, core/providers.py, domains/<тема>.py, пороги)
-**Статус:** открыта
+**Статус:** сделана
 
 ## Что сделать
 добавить python-multipart в requirements.txt
@@ -14,4 +14,4 @@ abd6e84 добавил /run-audio с UploadFile/File — FastAPI без python-m
 python-multipart с зафиксированной версией в requirements.txt; smoke проходит в окружении только из requirements.txt
 
 ## Ответ
-⟨заполняет диана: сделано / в работе / отклонено и почему⟩
+Сделано Дианой в `b6cb094`: `python-multipart~=0.0.28` в `requirements.txt`. Закрывает Соня как временный лид (решение 008), 25.10, 15:16.
