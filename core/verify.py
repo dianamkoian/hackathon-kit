@@ -546,6 +546,27 @@ _NEWS_CLAIM = re.compile(
     re.IGNORECASE)
 
 
+# Схема «руководитель просит срочно оплатить по новым реквизитам и никому не
+# говорить». Каждая фраза по отдельности встречается и в честной переписке,
+# поэтому это сигналы уровня doubt, а вывод делает домен по их сочетанию.
+_REQUISITES_CHANGE = re.compile(
+    r"реквизит\w*\s+(?:нов\w*|изменил\w*|сменил\w*|друг\w*)"
+    r"|(?:нов\w*|изменил\w*|сменил\w*|друг\w*)\s+реквизит\w*"
+    r"|нов\w+\s+(?:сч[её]т|номер карты)|переведите на друг\w+\s+сч[её]т",
+    re.IGNORECASE)
+# «Никому не сообщайте код» — совет банка, а не секретность: перед кодом,
+# паролем и CVV фраза не считается.
+_SECRECY_PHRASE = re.compile(
+    r"никому\s+(?:пока\s+)?не\s+(?:говори\w*|сообщай\w*|рассказыв\w*)"
+    r"(?![^.!?\n]{0,25}(?:код|парол|cvv|cvc|пин|pin))"
+    r"|это между нами|\bне звони(?:те)?\b",
+    re.IGNORECASE)
+_AUTHORITY_REQUEST = re.compile(
+    r"(?:директор|руководител\w*|начальни\w*|бухгалтери\w*|генеральн\w*)\s+"
+    r"(?:\w+\s+)?(?:просит|попросил\w*|поручил\w*|сказал\w*)",
+    re.IGNORECASE)
+
+
 def _phrase_signals(text: str) -> list[dict[str, Any]]:
     """Находит формулировки, которые видно глазом, и цитирует их по позиции."""
     found: list[dict[str, Any]] = []
@@ -555,7 +576,10 @@ def _phrase_signals(text: str) -> list[dict[str, Any]]:
                           ("too_good_phrase", _TOO_GOOD_PHRASE),
                           ("spread_call", _SPREAD_CALL),
                           ("suppression", _SUPPRESSION),
-                          ("news_claim", _NEWS_CLAIM)):
+                          ("news_claim", _NEWS_CLAIM),
+                          ("requisites_change", _REQUISITES_CHANGE),
+                          ("secrecy_phrase", _SECRECY_PHRASE),
+                          ("authority_request", _AUTHORITY_REQUEST)):
         for m in pattern.finditer(text):
             found.append({"kind": kind, "quote": m.group(0).strip(),
                           "start": m.start(), "end": m.end()})
@@ -676,6 +700,11 @@ if __name__ == "__main__":
     expect(kinds("В Казани открыли станцию метро, сообщает пресс-служба мэрии."),
            [("news_claim", "сообщает"), ("news_claim", "пресс-служба")])
     expect(kinds("Сообщаем, что заказ доставлен."), [])
+
+    # Схема «руководитель просит оплатить по новым реквизитам, никому не говори».
+    expect([k for k, _ in kinds("Директор просит оплатить счёт, реквизиты новые. Никому пока не говори.")],
+           ["requisites_change", "secrecy_phrase", "authority_request"])
+    expect(kinds("Никому не сообщайте этот код, даже сотрудникам банка."), [])
 
     # Mixed scripts: disguises yes, brand compounds no.
     expect(kinds("Bыплата одобрена"), [("mixed_script", "Bыплата")])

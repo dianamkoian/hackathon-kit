@@ -26,6 +26,7 @@ from core.schemes import SCHEMES, identify
 from core.store import Store
 from core.providers import get_provider
 import api.ollama  # noqa: F401 — registers LLM_BACKEND=ollama (local models on Windows)
+from core.verify import find_mechanical_signals
 from domains.authenticity import (
     SPEC, decisive_answer, load_cases, make_mock_handler, mechanical_answer,
     apply_news_rule,
@@ -177,6 +178,11 @@ def run_endpoint(req: RunRequest) -> dict:
             # ответ нужен сейчас. Отдаём то, что видят детекторы.
             raise RuntimeError(attempt.reason)
         result = attempt.value
+        if not result.answered and not find_mechanical_signals(req.text):
+            # Каскад отказался, а в тексте нет ни одного наблюдаемого приёма.
+            # «Возьмите паузу» на «купить хлеба?» — ложная тревога; честный
+            # ответ тот же, что у механики на чистом тексте: не найдено, не гарантия.
+            raise RuntimeError(f"каскад не дал ответа ({result.reason}), признаков в тексте нет")
     except RuntimeError as exc:
         # Модели нет или она не знает этот текст. Часть приёмов наблюдаема
         # детекторами, без модели — отвечаем тем, что код реально видит, и

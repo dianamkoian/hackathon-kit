@@ -248,6 +248,9 @@ SPEC = TaskSpec(
         "secret_request": "code_request",
         "spread_call": "spread_call",
         "suppression": "suppression",
+        "requisites_change": "money_request",
+        "secrecy_phrase": "secrecy",
+        "authority_request": "authority",
     },
     signal_type_field="markers[].type",
     signal_verdict_field="assessment",
@@ -354,7 +357,13 @@ _SIGNAL_TO_MARKER = {
     "too_good_phrase": "too_good",
     "spread_call": "spread_call",
     "suppression": "suppression",
+    "requisites_change": "money_request",
+    "secrecy_phrase": "secrecy",
+    "authority_request": "authority",
 }
+
+# Просьба оплатить или перевести без суммы: «оплатить счёт поставщику».
+_PAY_WORD = re.compile(r"\b(?:оплат\w*|перевед\w*|перевест\w*|заплат\w*|скинь)", re.IGNORECASE)
 
 # Сигналы, каждый из которых сам по себе — основание не доверять сообщению.
 # Просьба кода в чужом сообщении не имеет безобидного прочтения. Номер карты
@@ -393,10 +402,16 @@ def mechanical_answer(text: str) -> dict | None:
     # Сочетание «просьба денег + новый контакт» решающее, хотя каждый
     # признак по отдельности встречается и в честных сообщениях.
     combo = {"money_phrase", "new_contact_phrase"} <= kinds
-    assessment = "distrust" if (decisive or combo) else "doubt"
+    # «Руководитель просит оплатить / новые реквизиты» — схема C06; с просьбой
+    # молчать она уже не бывает честной.
+    boss = "authority_request" in kinds and (
+        "requisites_change" in kinds or bool(_PAY_WORD.search(text)))
+    assessment = "distrust" if (decisive or combo or (boss and "secrecy_phrase" in kinds)) else "doubt"
 
     if "secret_request" in kinds:
         check_id = "C11"           # просят код из СМС, пароль, данные карты
+    elif boss:
+        check_id = "C06"           # просьба руководителя — подтвердить по другому каналу
     elif "card_number" in kinds:
         check_id = "C01"           # просьба о деньгах — перезвонить на старый номер
     elif {"money_phrase", "new_contact_phrase"} & kinds:
@@ -405,8 +420,12 @@ def mechanical_answer(text: str) -> dict | None:
         check_id = "C20"           # слух — найти новость в двух СМИ
     elif "link" in kinds:
         check_id = "C04"           # ссылка — открыть сервис вручную
-    else:
+    elif "mixed_script" in kinds:
         check_id = "C18"           # подмена букв — текст маскируется от фильтров
+    elif "too_good_phrase" in kinds:
+        check_id = "C08"           # слишком хорошее предложение
+    else:
+        check_id = "C12"           # давление: пауза и разговор с близким
 
     names = ", ".join(sorted(kinds))
     return {
