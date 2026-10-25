@@ -1,119 +1,177 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Демо каскада</title>
+<title>Второе мнение</title>
 <style>
   :root {
-    --bg: #fbfbfa; --panel: #fff; --ink: #1a1a19; --muted: #6b6b68;
-    --line: #e4e4e1; --accent: #2b5fd9; --ok: #157f4a; --warn: #9a6600; --bad: #b3261e;
+    --bg:#fbfbfa; --panel:#fff; --ink:#1a1a19; --muted:#6b6b68; --line:#e4e4e1;
+    --accent:#2b5fd9; --ok:#157f4a; --warn:#9a6600; --bad:#b3261e;
+    --mark:#ffe8a3; --mark-ink:#5a4200;
     --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #17181a; --panel: #1f2023; --ink: #ececeb; --muted: #9a9a97;
-      --line: #32343a; --accent: #7aa2ff; --ok: #4cc38a; --warn: #e3b341; --bad: #ff6b60;
+      --bg:#17181a; --panel:#1f2023; --ink:#ececeb; --muted:#9a9a97; --line:#32343a;
+      --accent:#7aa2ff; --ok:#4cc38a; --warn:#e3b341; --bad:#ff6b60;
+      --mark:#4a3c10; --mark-ink:#ffdf8a;
     }
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 24px 16px; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif;
-  }
-  main { max-width: 860px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
-  .panel {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 10px; padding: 16px; margin-bottom: 16px;
-  }
-  textarea {
-    width: 100%; min-height: 110px; resize: vertical; padding: 10px;
-    border: 1px solid var(--line); border-radius: 8px;
-    background: var(--bg); color: var(--ink); font: 13px/1.5 var(--mono);
-  }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-  button {
-    font: inherit; padding: 7px 14px; border-radius: 7px; cursor: pointer;
-    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-  }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button:disabled { opacity: .55; cursor: default; }
-  select { font: inherit; padding: 6px; border-radius: 7px;
-           border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
-  .badge {
-    display: inline-block; padding: 2px 9px; border-radius: 999px;
-    font-size: 12px; font-weight: 600; border: 1px solid currentColor;
-  }
-  .s-ok { color: var(--ok); } .s-escalated { color: var(--warn); } .s-abstained { color: var(--bad); }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line);
-           vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase;
-       letter-spacing: .03em; }
-  td.num { text-align: right; font-family: var(--mono); white-space: nowrap; }
-  .mark-ok { color: var(--ok); } .mark-bad { color: var(--bad); }
-  pre { margin: 0; padding: 10px; overflow-x: auto; background: var(--bg);
-        border: 1px solid var(--line); border-radius: 8px;
-        font: 12px/1.5 var(--mono); }
-  .totals { color: var(--muted); font-size: 13px; margin-top: 10px; font-family: var(--mono); }
-  .muted { color: var(--muted); font-size: 13px; }
-  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
-       color: var(--muted); margin: 0 0 10px; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px 16px; background:var(--bg); color:var(--ink);
+         font:15px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  main { max-width:780px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 20px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+           padding:16px; margin-bottom:14px; }
+  textarea { width:100%; min-height:96px; resize:vertical; padding:10px;
+             border:1px solid var(--line); border-radius:8px; background:var(--bg);
+             color:var(--ink); font:14px/1.5 inherit; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  button { font:inherit; padding:8px 16px; border-radius:7px; cursor:pointer;
+           border:1px solid var(--line); background:var(--panel); color:var(--ink); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.55; cursor:default; }
+  select { font:inherit; padding:7px; border-radius:7px; border:1px solid var(--line);
+           background:var(--panel); color:var(--ink); max-width:100%; }
+  .verdict { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .verdict b { font-size:20px; }
+  .v-trust b { color:var(--ok); } .v-doubt b { color:var(--warn); } .v-distrust b { color:var(--bad); }
+  .message { white-space:pre-wrap; padding:12px; border-radius:8px; background:var(--bg);
+             border:1px solid var(--line); line-height:1.75; }
+  mark { background:var(--mark); color:var(--mark-ink); padding:1px 2px; border-radius:3px; }
+  .markers { list-style:none; padding:0; margin:12px 0 0; }
+  .markers li { display:flex; gap:8px; align-items:baseline; padding:5px 0;
+                border-bottom:1px solid var(--line); font-size:14px; }
+  .markers li:last-child { border-bottom:none; }
+  .mtype { font-weight:600; white-space:nowrap; }
+  .mquote { color:var(--muted); }
+  .check { border-left:3px solid var(--accent); padding:10px 0 10px 12px; margin-top:14px; }
+  .check .act { font-weight:600; }
+  .check .why, .check .time { color:var(--muted); font-size:13px; margin-top:4px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.05em;
+       color:var(--muted); margin:0 0 10px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th,td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line);
+          vertical-align:top; }
+  th { color:var(--muted); font-size:11px; text-transform:uppercase; }
+  td.num { text-align:right; font-family:var(--mono); white-space:nowrap; }
+  .mark-ok { color:var(--ok); } .mark-bad { color:var(--bad); }
+  .totals { color:var(--muted); font-size:12px; margin-top:8px; font-family:var(--mono); }
+  .muted { color:var(--muted); font-size:13px; }
+  details summary { cursor:pointer; color:var(--muted); font-size:13px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Демо каскада</h1>
-  <p class="sub">Каждый узел, его модель, его стоимость и его вердикт.
-     Меняется тема — вид остаётся.</p>
+  <h1>Второе мнение</h1>
+  <p class="sub">Вставьте подозрительное сообщение. Система не угадывает «фейк или
+     нет» — она показывает приёмы манипуляции с цитатами из самого текста и даёт
+     одну проверку, которая снимает сомнение быстрее всего.</p>
 
   <div class="panel">
-    <textarea id="text" spellcheck="false"></textarea>
+    <textarea id="text" spellcheck="false"
+      placeholder="Например: Мам, привет, это я, телефон разбился…"></textarea>
     <div class="row">
-      <button class="primary" id="go">Запустить</button>
-      <select id="arm">
-        <option value="cascade">каскад</option>
-        <option value="baseline">baseline (один вызов, без барьеров)</option>
-      </select>
-      <select id="samples"><option value="">пример расшифровки…</option></select>
+      <button class="primary" id="go">Проверить</button>
+      <select id="samples"><option value="">пример сообщения…</option></select>
       <span class="muted" id="backend"></span>
     </div>
   </div>
 
   <div class="panel" id="out" hidden>
-    <h2>Результат</h2>
-    <p><span class="badge" id="status"></span> <span class="muted" id="why"></span></p>
-    <pre id="data"></pre>
-    <h2 style="margin-top:18px">Трассировка</h2>
-    <table>
-      <thead><tr><th>узел</th><th>модель</th><th></th><th class="num">цена</th>
-                 <th class="num">мс</th><th>подробности</th></tr></thead>
-      <tbody id="trace"></tbody>
-    </table>
-    <p class="totals" id="totals"></p>
+    <div class="verdict" id="verdict"></div>
+    <p class="muted" id="reason" style="margin:6px 0 14px"></p>
+
+    <h2>Что в сообщении</h2>
+    <div class="message" id="message"></div>
+    <ul class="markers" id="markers"></ul>
+
+    <div class="check" id="check" hidden>
+      <h2 style="margin-bottom:6px">Что сделать прямо сейчас</h2>
+      <div class="act" id="check-act"></div>
+      <div class="why" id="check-why"></div>
+      <div class="time" id="check-time"></div>
+    </div>
+
+    <details style="margin-top:18px">
+      <summary>Как система к этому пришла</summary>
+      <table style="margin-top:10px">
+        <thead><tr><th>узел</th><th>модель</th><th></th><th class="num">цена</th>
+                   <th class="num">мс</th><th>подробности</th></tr></thead>
+        <tbody id="trace"></tbody>
+      </table>
+      <p class="totals" id="totals"></p>
+    </details>
   </div>
 </main>
 
 <script>
 const $ = (id) => document.getElementById(id);
 
+const VERDICT = {
+  trust:    { word: "Похоже на настоящее", cls: "v-trust" },
+  doubt:    { word: "Есть сомнения",       cls: "v-doubt" },
+  distrust: { word: "Похоже на обман",     cls: "v-distrust" },
+};
+
+const MARKER = {
+  money_request:      "просьба о деньгах",
+  urgency:            "давление срочностью",
+  new_contact:        "пишет с нового номера или аккаунта",
+  authority:          "представляется организацией или начальством",
+  secrecy:            "просит никому не говорить",
+  code_request:       "просит код, пароль или данные карты",
+  external_link:      "ссылка на оплату или вход",
+  prepayment:         "требует предоплату",
+  too_good:           "слишком выгодное предложение",
+  unverifiable_proof: "доказательство, которое нельзя проверить",
+  remote_access:      "просит доступ к устройству",
+};
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => (
+    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]
+  ));
+}
+
+// Подсветка цитат прямо в сообщении — главное, что показывает экран: система
+// не «чувствует» обман, а указывает, где он написан. Цитаты дословные (это
+// гарантирует механическая проверка на сервере), поэтому ищем подстрокой.
+function highlight(text, markers) {
+  const spans = [];
+  for (const m of markers) {
+    if (!m.quote) continue;
+    const at = text.indexOf(m.quote);
+    if (at >= 0) spans.push({ start: at, end: at + m.quote.length });
+  }
+  spans.sort((a, b) => a.start - b.start);
+
+  let html = "", cursor = 0;
+  for (const s of spans) {
+    if (s.start < cursor) continue;            // пересечения пропускаем
+    html += escapeHtml(text.slice(cursor, s.start));
+    html += "<mark>" + escapeHtml(text.slice(s.start, s.end)) + "</mark>";
+    cursor = s.end;
+  }
+  return html + escapeHtml(text.slice(cursor));
+}
+
 async function boot() {
   try {
     const health = await (await fetch("/healthz")).json();
-    $("backend").textContent =
-      `бэкенд: ${health.backend} · порог: ${health.confidence_floor}`;
+    $("backend").textContent = `модель: ${health.backend}`;
     const samples = await (await fetch("/samples")).json();
     for (const s of samples) {
       const opt = document.createElement("option");
       opt.value = s.text;
-      opt.textContent = `${s.id} (${s.difficulty})`;
+      opt.textContent = `${s.id} — ${String(s.text).slice(0, 48)}…`;
       $("samples").append(opt);
     }
-    if (samples.length) $("text").value = samples[0].text;
-  } catch (err) {
-    $("backend").textContent = "API недоступен — uvicorn запущен?";
+  } catch {
+    $("backend").textContent = "сервер не отвечает — запущен ли uvicorn?";
   }
 }
 
@@ -123,61 +181,79 @@ $("samples").addEventListener("change", (e) => {
 
 $("go").addEventListener("click", async () => {
   const btn = $("go");
-  btn.disabled = true;
-  btn.textContent = "Считаю…";
+  btn.disabled = true; btn.textContent = "Проверяю…";
   try {
     const res = await fetch("/run", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: $("text").value, arm: $("arm").value }),
+      body: JSON.stringify({ text: $("text").value }),
     });
     const body = await res.json();
     if (!res.ok) throw new Error(body.detail || res.statusText);
-    render(body);
+    render(body, $("text").value);
   } catch (err) {
     $("out").hidden = false;
-    $("status").textContent = "ошибка";
-    $("status").className = "badge s-abstained";
-    $("why").textContent = err.message;
-    $("data").textContent = "";
+    $("verdict").className = "verdict v-doubt";
+    $("verdict").innerHTML = "<b>Не получилось</b>";
+    $("reason").textContent = err.message;
+    $("message").textContent = "";
+    $("markers").innerHTML = "";
+    $("check").hidden = true;
     $("trace").innerHTML = "";
-    $("totals").textContent = "";
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Запустить";
+    btn.disabled = false; btn.textContent = "Проверить";
   }
 });
 
-function render(body) {
+function render(body, original) {
   $("out").hidden = false;
-  $("status").textContent = body.status;
-  $("status").className = "badge s-" + body.status;
-  $("why").textContent = body.reason || "";
-  $("data").textContent = body.data
-    ? JSON.stringify(body.data, null, 2)
-    : "— ответ не выдан —";
+  const product = body.product || {};
+  const markers = (body.data && body.data.markers) || [];
 
-  const rows = body.trace.steps.map((s) => {
+  if (!body.answered) {
+    $("verdict").className = "verdict v-doubt";
+    $("verdict").innerHTML = "<b>Не уверены</b> <span class='muted'>"
+      + "система отказалась от вердикта и предлагает проверку</span>";
+  } else {
+    const v = VERDICT[product.assessment] || VERDICT.doubt;
+    $("verdict").className = "verdict " + v.cls;
+    $("verdict").innerHTML = `<b>${v.word}</b>`
+      + (markers.length ? ` <span class="muted">найдено приёмов: ${markers.length}</span>` : "");
+  }
+  $("reason").textContent = body.reason || "";
+
+  $("message").innerHTML = highlight(original, markers);
+  $("markers").innerHTML = markers.map((m) => `
+    <li><span class="mtype">${MARKER[m.type] || m.type}</span>
+        <span class="mquote">«${escapeHtml(m.quote || "")}»</span></li>`).join("");
+
+  const check = product.check;
+  if (check && check.id !== "C00") {
+    $("check").hidden = false;
+    $("check-act").textContent = check.action;
+    $("check-why").textContent = check.why;
+    $("check-time").textContent = check.time_sec
+      ? `займёт около ${check.time_sec < 60 ? check.time_sec + " секунд"
+          : Math.round(check.time_sec / 60) + " мин"}`
+      : "";
+  } else {
+    $("check").hidden = true;
+  }
+
+  const t = body.trace || { steps: [] };
+  $("trace").replaceChildren(...t.steps.map((s) => {
     const tr = document.createElement("tr");
-    const cells = [
-      s.node,
-      s.model || "—",
+    tr.innerHTML = [
+      s.node, s.model || "—",
       `<span class="${s.ok ? "mark-ok" : "mark-bad"}">${s.ok ? "✓" : "✕"}</span>`,
       s.cost_usd ? `$${s.cost_usd.toFixed(5)}` : "—",
       s.latency_ms ? s.latency_ms.toFixed(0) : "—",
       s.detail || "",
-    ];
-    tr.innerHTML = cells
-      .map((c, i) => `<td${i === 3 || i === 4 ? ' class="num"' : ""}>${c}</td>`)
-      .join("");
+    ].map((c, i) => `<td${i === 3 || i === 4 ? ' class="num"' : ""}>${c}</td>`).join("");
     return tr;
-  });
-  $("trace").replaceChildren(...rows);
-  const t = body.trace;
-  $("totals").textContent =
-    `узлов: ${t.steps.length} · $${t.cost_usd.toFixed(5)} · ` +
-    `${t.model_latency_ms.toFixed(0)} мс в вызовах моделей · ` +
-    `модели: ${t.models_used.join(", ") || "нет"}`;
+  }));
+  $("totals").textContent = `узлов: ${t.steps.length} · $${(t.cost_usd || 0).toFixed(5)}`
+    + ` · ${(t.model_latency_ms || 0).toFixed(0)} мс · модели: ${(t.models_used || []).join(", ") || "нет"}`;
 }
 
 boot();
