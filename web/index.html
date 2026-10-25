@@ -584,6 +584,7 @@
       </div>
       <div id="quiz-reveal" hidden>
         <p class="match" id="quiz-match"></p>
+        <button type="button" class="btn" id="quiz-evidence">Показать улики</button>
         <div class="message" id="quiz-marked" style="border-top:none"></div>
         <ul class="markers" id="quiz-markers"></ul>
         <p class="note" id="quiz-check"></p>
@@ -596,7 +597,8 @@
       <p class="lead" id="quiz-score-why" style="margin-bottom:var(--s3)"></p>
       <button type="button" class="btn primary" id="quiz-again">Ещё раз</button>
     </div>
-    <p class="note">Сравниваем с разбором системы, а не с эталонной разметкой: её сервер пока не отдаёт.</p>
+    <p class="note">Правильные ответы — ручная разметка команды, та же, по которой считаются метрики.
+      Улики по кнопке показывает Verka: на живой модели это занимает 10–20 секунд.</p>
   </div>
 
   <!-- ===================== страница: тарифы ===================== -->
@@ -716,6 +718,16 @@ const OUTCOME = {
                          "Предупредите близких."] },
 };
 
+// Подпись бэкенда из /healthz для жюри: что работает, а не как называется пакет.
+const BACKEND_LABEL = {
+  mock:              "офлайн-заглушки",
+  ollama:            "локальная модель · без интернета",
+  mlx:               "локальная модель · без интернета",
+  hybrid:            "локальная модель + облако",
+  anthropic:         "облачная модель",
+  "mechanical-only": "без модели · только детекторы",
+};
+
 // Группы примеров по префиксу id в evals/cases_authenticity.jsonl.
 const SAMPLE_GROUPS = { s: "Схемы мошенников", l: "Обычные сообщения", b: "Спорные случаи", r: "Настоящие сообщения" };
 
@@ -733,9 +745,9 @@ async function asJson(res) {
 }
 const api = {
   get: (path) => fetch(path).then(asJson),
-  run: (text, arm = "cascade") => fetch("/run", {
+  run: (text, arm = "cascade", save = true) => fetch("/run", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text, arm }),
+    body: JSON.stringify(save ? { text, arm } : { text, arm, save: false }),
   }).then(asJson),
   runAudio(blob, name) {
     const form = new FormData();
@@ -1026,8 +1038,10 @@ async function checkAudio(blob, name) {
 NODE["распознавание речи"] = { name: "Распознавание речи", what: "" };
 
 // ===================================================================
-// 6. Тренировка: 10 случайных примеров из /samples. Ответ человека
-//    сравниваем с разбором системы — эталонной разметки сервер не отдаёт.
+// 6. Тренировка: 10 случайных примеров из /samples. Ответ человека сверяем
+//    с ручной разметкой expected_assessment — мгновенно, без модели. Улики
+//    Verka показывает по кнопке: /run с save:false, чтобы тренировка не
+//    попадала в хранилище и не накручивала «уже проверяли N раз».
 // ===================================================================
 const QUIZ_LEN = 10;
 const quiz = { items: [], i: 0, matched: 0, cache: new Map() };
@@ -1066,27 +1080,53 @@ async function quizAnswer(btn) {
   $("quiz-answers").querySelectorAll("button").forEach((b) => {
     b.disabled = true; b.setAttribute("aria-pressed", String(b === btn));
   });
-  // Кэш: повторный проход не гоняет тот же текст через сервер второй раз.
-  let body = quiz.cache.get(item.text);
-  try {
-    if (!body) { body = await api.run(item.text); quiz.cache.set(item.text, body); }
-  } catch (err) {
-    $("quiz-match").textContent = explainError(err)[0];
+  $("quiz-marked").hidden = true; $("quiz-markers").innerHTML = ""; $("quiz-check").textContent = "";
+  $("quiz-next").textContent = quiz.i + 1 < quiz.items.length ? "Дальше" : "Итог";
+  const truth = item.expected_assessment;
+  if (truth) {
+    const hit = btn.dataset.a === truth;
+    if (hit) quiz.matched++;
+    const v = VERDICT[truth] || VERDICT.doubt;
+    $("quiz-match").innerHTML = (hit ? "Верно" : "Правильный ответ")
+      + ` — <span class="${v.cls}">${escapeHtml(v.word.toLowerCase())}</span>`;
+    $("quiz-evidence").hidden = false;
     $("quiz-reveal").hidden = false;
     return;
   }
+  // Старый сервер без разметки: сверяем с разбором системы и прямо так и пишем.
+  const body = await quizEvidence();
+  if (!body) return;
   const system = body.answered ? (body.product || {}).assessment : "doubt";
   const hit = btn.dataset.a === system;
   if (hit) quiz.matched++;
   $("quiz-match").innerHTML = (hit ? "Совпало с разбором системы" : "Система решила иначе")
     + ` — <span class="${verdictOf(body).cls}">${escapeHtml(verdictOf(body).word.toLowerCase())}</span>`;
+}
+
+// Улики от Verka для текущего примера. Кэш — чтобы не гонять текст дважды.
+async function quizEvidence() {
+  const item = quiz.items[quiz.i];
+  const btn = $("quiz-evidence");
+  btn.disabled = true; btn.textContent = "Verka смотрит…";
+  $("quiz-reveal").hidden = false;
+  let body = quiz.cache.get(item.text);
+  try {
+    if (!body) { body = await api.run(item.text, "cascade", false); quiz.cache.set(item.text, body); }
+  } catch (err) {
+    $("quiz-check").textContent = explainError(err)[0];
+    return null;
+  } finally {
+    btn.disabled = false; btn.textContent = "Показать улики";
+  }
+  if (quiz.items[quiz.i] !== item) return null;   // пока ждали, ушли к следующему
+  btn.hidden = true;
   const markers = (body.data && body.data.markers) || [];
   renderMessage(item.text, markers, body.answered, $("quiz-marked"), $("quiz-markers"), null);
   $("quiz-marked").hidden = !markers.length;
   const check = (body.product || {}).check;
-  $("quiz-check").textContent = check && check.id !== "C00" ? `Как проверить: ${check.action}` : "";
-  $("quiz-next").textContent = quiz.i + 1 < quiz.items.length ? "Дальше" : "Итог";
-  $("quiz-reveal").hidden = false;
+  $("quiz-check").textContent = !markers.length ? "Verka приёмов манипуляции не нашла."
+    : check && check.id !== "C00" ? `Как проверить: ${check.action}` : "";
+  return body;
 }
 
 function quizNext() {
@@ -1094,7 +1134,7 @@ function quizNext() {
   $("quiz-play").hidden = true; $("quiz-done").hidden = false;
   $("quiz-score").textContent = `${quiz.matched} из ${quiz.items.length}`;
   $("quiz-score-why").textContent = quiz.matched >= quiz.items.length * 0.8
-    ? "Вы замечаете почти всё, что замечает система. Покажите тренировку близким."
+    ? "Вы распознаёте почти все случаи. Покажите тренировку близким."
     : "Мошенники рассчитывают ровно на это — в спешке приёмы не видны. Проверяйте, прежде чем отвечать.";
 }
 
@@ -1612,7 +1652,7 @@ async function boot() {
     state.backend = health.backend;
     const mock = health.backend === "mock";
     status.className = "status " + (mock ? "mock" : "live");
-    status.textContent = mock ? "офлайн-заглушки" : `модель: ${health.backend}`;
+    status.textContent = BACKEND_LABEL[health.backend] || `модель: ${health.backend}`;
     $("mock-note").hidden = !mock;
 
     state.samples = await api.get("/samples");
@@ -1678,6 +1718,7 @@ $("quiz-answers").addEventListener("click", (e) => {
   if (b && !b.disabled) quizAnswer(b);
 });
 $("quiz-next").addEventListener("click", quizNext);
+$("quiz-evidence").addEventListener("click", quizEvidence);
 $("quiz-again").addEventListener("click", () => { quizStart(); window.scrollTo(0, 0); });
 
 $("plans").addEventListener("click", (e) => {
