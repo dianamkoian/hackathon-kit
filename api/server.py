@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from core.pipeline import confidence_floor, run, run_baseline
 from core.store import Store
 from core.providers import get_provider
+import api.ollama  # noqa: F401 — registers LLM_BACKEND=ollama (local models on Windows)
 from domains.authenticity import (
     SPEC, decisive_answer, load_cases, make_mock_handler, mechanical_answer,
     present,
