@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verka — запасная демонстрация</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#14181c;--muted:#6f7780;--line:#e7eaee;--paper:#fbfaf7;--card:#fff;
+        --accent:#0ABAB5;--bad:#b3261e;--warn:#9a6600;--ok:#157f4a;
+        --serif:'Playfair Display',Georgia,serif;--sans:'Inter',-apple-system,system-ui,sans-serif;}
+  *{box-sizing:border-box}
+  body{margin:0;padding:34px 18px 60px;background:var(--paper);color:var(--ink);
+       font:400 16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+  main{max-width:760px;margin:0 auto}
+  h1{font-family:var(--serif);font-size:38px;line-height:1.1;margin:0 0 10px;letter-spacing:-.02em}
+  .lead{color:var(--muted);font-size:15px;margin:0 0 6px}
+  .warn{display:inline-block;margin:14px 0 26px;padding:9px 14px;border-radius:9px;
+        background:#fff6e6;border:1px solid #f0d9a8;color:#7a5600;font-size:13.5px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+  .tabs button{font:500 14px var(--sans);padding:9px 15px;border-radius:999px;cursor:pointer;
+               border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .tabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+           margin:0 0 10px;font-weight:600}
+  .verdict{font-family:var(--serif);font-size:32px;line-height:1.15;margin:0 0 8px}
+  .v-distrust{color:var(--bad)} .v-doubt{color:var(--warn)} .v-clean{color:var(--ok)}
+  .why{color:var(--muted);font-size:14.5px;margin:0 0 24px}
+  .msg{white-space:pre-wrap;padding:16px;border-radius:12px;background:var(--card);
+       border:1px solid var(--line);line-height:1.85;font-size:15px}
+  mark{background:#fff2cc;box-shadow:inset 0 -2px 0 #e0a800;padding:1px 3px;border-radius:4px;font-weight:500}
+  ul.m{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
+  ul.m li{padding:11px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:14px}
+  ul.m b{display:block;margin-bottom:3px}
+  ul.m span{color:var(--muted);font-size:13.5px}
+  .act{margin-top:24px;border-left:3px solid var(--accent);padding:4px 0 4px 16px}
+  .act .what{font-size:19px;font-weight:600;line-height:1.4}
+  .act .sub{color:var(--muted);font-size:14px;margin-top:7px}
+  .sw{margin-top:20px;padding:15px 17px;border-radius:12px;background:#eefbfa;border:1px solid #bfe9e6}
+  .sw b{display:block;margin-bottom:5px}
+  .scheme{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+  .scheme h3{font-family:var(--serif);font-size:19px;margin:0 0 8px;font-weight:600}
+  .scheme p{margin:0 0 7px;font-size:14.5px;color:#39404a}
+  .scheme em{color:var(--muted);font-style:normal;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+  td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  th{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:22px}
+  .foot{color:var(--muted);font-size:12.5px;margin-top:34px;text-align:center}
+  @media(max-width:460px){h1{font-size:30px}.verdict{font-size:26px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Verka</h1>
+  <p class="lead">Показываем, где в сообщении обман, и что сделать за тридцать секунд.</p>
+  <div class="warn">Это запасная страница: ответы записаны 25.10.2026 17:17 и показываются
+     без сервера. Живая версия принимает любой текст, голос и скриншот.</div>
+  <div class="tabs" id="tabs"></div>
+  <div id="out"></div>
+  <p class="foot">Мы проверяем приёмы в тексте, а не факты. Решение всегда за вами.</p>
+</main>
+<script>
+const DATA = [{"title": "Поддельный банк", "text": "Добрый день! Ваша карта заблокирована службой безопасности банка. Продиктуйте код из СМС прямо сейчас, иначе счёт будет закрыт. Никому не сообщайте об этом звонке.", "state": "distrust", "reason": "ответ дан без вызова модели: найден признак, у которого нет безобидного прочтения — secret_request", "markers": [{"type": "urgency", "quote": "прямо сейчас"}, {"type": "urgency", "quote": "иначе счёт будет закрыт"}, {"type": "secrecy", "quote": "Никому не сообщайте"}, {"type": "code_request", "quote": "Продиктуйте код из СМС"}], "check": {"id": "C11", "doubt": "Просят код из СМС, пароль, данные карты", "action": "Не сообщайте ничего; если сомневаетесь, позвоните в сервис сами по официальному номеру", "time_sec": 30, "why": "Ни одна настоящая организация не спрашивает коды"}, "scheme": {"key": "bank", "name": "Служба безопасности банка", "how": "Представляются банком или полицией, сообщают о подозрительной операции и просят код из СМС «для отмены». Код открывает доступ к счёту.", "tell": "Входящий звонок или письмо о вашем счёте. Просьба назвать код. Давление: «иначе деньги спишут прямо сейчас».", "breaks": "Положить трубку и позвонить в банк самому по номеру с карты. Входящий номер подделывается, исходящий на известный номер — нет."}, "safeword": {"state": "ready", "title": "Спросите у «мама»", "question": "Как звали нашу первую собаку?", "text": "Настоящий человек ответит сразу. Подделка не знает вашей общей истории — и качество синтеза тут уже не поможет."}, "trace": [{"node": "signals", "ok": true, "detail": "ответ дан без вызова модели: найден признак, у которого нет безобидного прочтения — secret_request", "model": null, "cost_usd": 0.0, "latency_ms": 0.0, "input_tokens": 0, "output_tokens": 0}]}, {"title": "Мама с нового номера", "text": "Мам, это я, у меня новый номер, старый телефон украли. Срочно переведи 18000, потом объясню.", "state": "distrust", "reason": "разобрано без модели по наблюдаемым признакам: money_phrase, new_contact_phrase, urgency_phrase (модель упала: RuntimeError)", "markers": [{"type": "money_request", "quote": "переведи 18000"}, {"type": "urgency", "quote": "Срочно"}, {"type": "new_contact", "quote": "у меня новый номер"}, {"type": "new_contact", "quote": "телефон украли"}], "check": {"id": "C01", "doubt": "Просьба о деньгах/помощи от близкого, особенно с нового номера или из мессенджера", "action": "Перезвоните человеку на старый номер из своих контактов", "time_sec": 30, "why": "Мошенник контролирует новый номер или аккаунт, но не старый"}, "scheme": {"key": "relative", "name": "«Мама, это я, у меня новый номер»", "how": "Пишут или звонят от имени близкого с чужого номера. Объясняют сменой телефона, просят денег срочно и просят никому не говорить. Голос при звонке могут подделать.", "tell": "Новый контакт плюс срочность плюс просьба денег. И почти всегда просьба не рассказывать другим.", "breaks": "Звонок на старый номер из своих контактов. Или вопрос, ответ на который знает только настоящий человек."}, "safeword": {"state": "ready", "title": "Спросите у «мама»", "question": "Как звали нашу первую собаку?", "text": "Настоящий человек ответит сразу. Подделка не знает вашей общей истории — и качество синтеза тут уже не поможет."}, "trace": [{"node": "signals", "ok": true, "detail": "разобрано без модели по наблюдаемым признакам: money_phrase, new_contact_phrase, urgency_phrase", "model": null, "cost_usd": 0.0, "latency_ms": 0.0, "input_tokens": 0, "output_tokens": 0}]}, {"title": "Лёгкий заработок", "text": "Заработок от 5000 в день без опыта, обучение бесплатное, пиши в личку прямо сейчас", "state": "doubt", "reason": "разобрано без модели по наблюдаемым признакам: too_good_phrase, urgency_phrase (модель упала: RuntimeError)", "markers": [{"type": "urgency", "quote": "прямо сейчас"}, {"type": "too_good", "quote": "Заработок от 5000"}], "check": {"id": "C08", "doubt": "Выигрыш, компенсация, выплата, которую надо «активировать»", "action": "Найдите розыгрыш или выплату на официальном сайте организатора; помните, что настоящая выплата не требует оплаты", "time_sec": 60, "why": "Плата за получение выигрыша — признак схемы, а не процедуры"}, "scheme": {"key": "job", "name": "Вербовка под видом работы", "how": "Предлагают лёгкий заработок без опыта и с оплатой выше рыночной. Дальше либо просят «залог» или оплату обучения, либо используют человека как дропа — через его карту проводят чужие деньги.", "tell": "Сумма, которой не бывает за такую работу. «Без опыта», «обучение бесплатное», «пиши в личку». Работодателя нет нигде, кроме переписки.", "breaks": "Поиск работодателя вне мессенджера: сайт, ИНН, отзывы. Настоящая компания оставляет следы в нескольких местах."}, "safeword": null, "trace": [{"node": "signals", "ok": true, "detail": "разобрано без модели по наблюдаемым признакам: too_good_phrase, urgency_phrase", "model": null, "cost_usd": 0.0, "latency_ms": 0.0, "input_tokens": 0, "output_tokens": 0}]}, {"title": "Обычное сообщение", "text": "Привет! Во сколько завтра встречаемся у метро? Я могу к семи.", "state": "clean", "reason": "приёмов манипуляции в тексте не найдено. Это не гарантия: мы проверяем приёмы, а не факты (модель упала: RuntimeError)", "markers": [], "check": {"id": "C00", "doubt": "Маркеров обмана нет", "action": "Проверка не нужна", "time_sec": 0, "why": "Сообщение не просит ничего рискованного"}, "scheme": null, "safeword": null, "trace": [{"node": "signals", "ok": true, "detail": "приёмов манипуляции в тексте не найдено. Это не гарантия: мы проверяем приёмы, а не факты", "model": null, "cost_usd": 0.0, "latency_ms": 0.0, "input_tokens": 0, "output_tokens": 0}]}];
+const NAMES = {money_request:"просьба о деньгах",urgency:"давление срочностью",
+ new_contact:"пишет с нового номера или аккаунта",authority:"представляется организацией",
+ secrecy:"просит никому не рассказывать",code_request:"просит код, пароль или данные карты",
+ external_link:"ссылка на оплату или вход",prepayment:"требует предоплату",
+ too_good:"слишком выгодное предложение",unverifiable_proof:"доказательство, которое нельзя проверить",
+ remote_access:"просит доступ к устройству",obfuscation:"буквы подменены, чтобы обойти фильтры"};
+const TITLE = {distrust:["Похоже на обман","v-distrust"],doubt:["Есть сомнения","v-doubt"],
+ clean:["Признаков не найдено","v-clean"]};
+const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function hl(text, markers){
+  const spans=[];
+  for(const m of markers){const i=text.indexOf(m.quote); if(i>=0)spans.push([i,i+m.quote.length]);}
+  spans.sort((a,b)=>a[0]-b[0]);
+  let h="",c=0;
+  for(const [s,e] of spans){ if(s<c)continue; h+=esc(text.slice(c,s))+"<mark>"+esc(text.slice(s,e))+"</mark>"; c=e; }
+  return h+esc(text.slice(c));
+}
+function show(i){
+  const d=DATA[i];
+  [...document.querySelectorAll("#tabs button")].forEach((b,k)=>b.classList.toggle("on",k===i));
+  const [word,cls]=TITLE[d.state]||TITLE.doubt;
+  let h=`<p class="eyebrow">Вывод</p><div class="verdict ${cls}">${word}</div>`;
+  h+=`<p class="why">${esc(d.reason)}</p>`;
+  h+=`<p class="eyebrow">Где это написано</p><div class="msg">${hl(d.text,d.markers)}</div>`;
+  if(d.markers.length) h+=`<ul class="m">`+d.markers.map(m=>
+     `<li><b>${esc(NAMES[m.type]||m.type)}</b><span>«${esc(m.quote)}»</span></li>`).join("")+`</ul>`;
+  if(d.check && d.check.id!=="C00") h+=`<div class="act"><p class="eyebrow">Сделайте одно</p>
+     <div class="what">${esc(d.check.action)}</div><div class="sub">${esc(d.check.why)}</div></div>`;
+  if(d.safeword && d.safeword.question) h+=`<div class="sw"><b>${esc(d.safeword.title)}</b>
+     «${esc(d.safeword.question)}»<div class="sub">${esc(d.safeword.text)}</div></div>`;
+  if(d.scheme) h+=`<div class="scheme"><h3>${esc(d.scheme.name)}</h3>
+     <p><em>Как устроена.</em> ${esc(d.scheme.how)}</p>
+     <p><em>По чему узнаётся.</em> ${esc(d.scheme.tell)}</p>
+     <p><em>Что её ломает.</em> ${esc(d.scheme.breaks)}</p></div>`;
+  h+=`<details><summary>Как система к этому пришла</summary><table>
+      <tr><th>узел</th><th>модель</th><th>мс</th><th>подробности</th></tr>`+
+      d.trace.map(s=>`<tr><td>${esc(s.node)}</td><td>${esc(s.model||"—")}</td>
+      <td>${s.latency_ms?s.latency_ms.toFixed(0):"—"}</td><td>${esc(s.detail||"")}</td></tr>`).join("")+
+      `</table></details>`;
+  document.getElementById("out").innerHTML=h;
+}
+document.getElementById("tabs").innerHTML=DATA.map((d,i)=>`<button onclick="show(${i})">${esc(d.title)}</button>`).join("");
+show(0);
+</script>
+</body>
+</html>
