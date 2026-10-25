@@ -44,6 +44,11 @@
                       margin-right:12px; font-size:18px}
   ol.points span{color:#555c63; font-size:16.5px}
 
+  ul.caps{list-style:none; padding:0; margin:0; display:grid; grid-template-columns:1fr 1fr; column-gap:44px}
+  ul.caps li{padding:13px 0; border-top:1px solid var(--line)}
+  ul.caps b{display:block; font-size:18px; font-weight:600; margin-bottom:2px}
+  ul.caps span{color:#555c63; font-size:15px; line-height:1.45}
+
   table{width:100%; border-collapse:collapse; margin:10px 0 6px; font-size:17px}
   th,td{text-align:left; padding:15px 10px; border-bottom:1px solid var(--line)}
   th{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:500}
@@ -60,7 +65,7 @@
   .num{position:fixed; right:22px; bottom:18px; font:500 12px var(--sans); color:var(--muted);
        letter-spacing:.08em}
   .hint{position:fixed; left:22px; bottom:18px; font-size:12px; color:var(--muted)}
-  @media(max-width:640px){ .deck{padding:5vh 7vw} td.big{font-size:26px} }
+  @media(max-width:640px){ .deck{padding:5vh 7vw} td.big{font-size:26px} ul.caps{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -79,9 +84,8 @@
     <p class="lead">Скриншот рисуется за минуту. Голос подделывается за час.
        Письмо от банка выглядит как письмо от банка.</p>
     <hr>
-    <p>Почти все решения отвечают одинаково: «фейк» или «не фейк».
-       Такой ответ <b>нельзя проверить</b> — остаётся снова верить на слово,
-       просто теперь машине.</p>
+    <p>Ответ «фейк» или «не фейк» <b>нельзя проверить</b> — остаётся снова
+       верить на слово, просто теперь машине.</p>
   </section>
 
   <section class="slide">
@@ -93,11 +97,44 @@
           Цитата сверяется с текстом механически: её либо нет, либо есть.</span></li>
       <li><b>Даём одну конкретную проверку</b>
           <span>Не «будьте бдительны», а «перезвоните на старый номер, 30 секунд».
-          В каталоге 17 проверок: действие, время, почему работает.</span></li>
+          В каталоге 20 проверок: действие, время, почему работает.</span></li>
       <li><b>Умеем сказать «не знаю»</b>
           <span>Порог отказа не выдуман — он откалиброван под обещание
           «не больше N% ошибок среди выданных ответов».</span></li>
     </ol>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Продукт</p>
+    <h2>Что умеет Verka</h2>
+    <ul class="caps">
+      <li><b>Разбирает сообщение</b>
+          <span>Оценка, приёмы манипуляции с цитатами, подсвеченными прямо
+          в тексте, и одно действие на полминуты.</span></li>
+      <li><b>Честно говорит «не уверены»</b>
+          <span>Если проверка ответа не пройдена — вместо вердикта
+          конкретная проверка.</span></li>
+      <li><b>Отвечает без нейросети, когда видно и так</b>
+          <span>Ссылка, номер карты, просьба кода, подмена букв —
+          ответ за секунду, ноль вызовов модели.</span></li>
+      <li><b>Сравнивает с одной моделью</b>
+          <span>Одной кнопкой видно, где обычный подход уверенно
+          ошибается, а мы — нет.</span></li>
+      <li><b>Читает скриншоты и голосовые</b>
+          <span>Текст с картинки распознаётся в браузере — картинка
+          никуда не уходит. Голос — локально, на Маке.</span></li>
+      <li><b>Помнит: «вам прислали не первому»</b>
+          <span>Видно, сколько раз это сообщение уже проверяли.</span></li>
+      <li><b>Не верит новости без источника</b>
+          <span>Даёт кнопки поиска — проверяет сам человек, на своём
+          устройстве.</span></li>
+      <li><b>Учит распознавать обман</b>
+          <span>Тренировка: 10 сообщений — решите сами, потом сравните
+          с разбором.</span></li>
+    </ul>
+    <p class="note" style="margin-top:22px">Тарифы: <b>lite</b> — бесплатно, 5 проверок в день ·
+       <b>pro</b> — 199 ₽/мес, семья до 5 человек · <b>enterprise</b> — API
+       с документацией <code>/docs</code>.</p>
   </section>
 
   <section class="slide">
