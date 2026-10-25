@@ -26,7 +26,7 @@ HF_CACHE = Path.home() / ".cache" / "huggingface" / "hub"
 class Entry:
     group: str
     repo: str
-    gb: float  # approximate on-disk size; check before trusting a disk budget
+    gb: float  # измеренный размер в кеше; у нескачанных — оценка
     why: str
     kind: str  # mlx-llm | mlx-asr | embed | plain
     priority: int = 5  # 1 = fetch first. On a weak link you may not get them all.
@@ -36,27 +36,27 @@ REGISTRY: list[Entry] = [
     # Cheap tier of the cascade. 1.5B is weak at schema-following; 7-8B at 4-bit
     # is the smallest size that holds structured output reliably, and still fits
     # alongside a browser and an IDE in 24 GB of unified memory.
-    Entry("llm", "mlx-community/Qwen2.5-1.5B-Instruct-4bit", 0.9,
+    Entry("llm", "mlx-community/Qwen2.5-1.5B-Instruct-4bit", 1.6,
           "fastest local tier; fine for routing and classification", "mlx-llm", 1),
-    Entry("llm", "mlx-community/Qwen3-4B-4bit", 2.3,
+    Entry("llm", "mlx-community/Qwen3-4B-4bit", 4.2,
           "good balance when 7B is too slow for a live demo", "mlx-llm", 4),
-    Entry("llm", "mlx-community/Qwen2.5-7B-Instruct-4bit", 4.3,
+    Entry("llm", "mlx-community/Qwen2.5-7B-Instruct-4bit", 8.0,
           "smallest local model that follows a JSON schema dependably", "mlx-llm", 2),
-    Entry("llm", "mlx-community/Qwen3-8B-4bit", 4.7,
+    Entry("llm", "mlx-community/Qwen3-8B-4bit", 8.6,
           "stronger local extractor; slower per token", "mlx-llm", 5),
 
     # Any theme with meetings, calls, voice notes or video starts here.
-    Entry("asr", "mlx-community/whisper-small-mlx", 0.5,
+    Entry("asr", "mlx-community/whisper-small-mlx", 0.9,
           "fast transcription; good enough for a demo", "mlx-asr", 1),
-    Entry("asr", "mlx-community/whisper-large-v3-turbo", 1.6,
+    Entry("asr", "mlx-community/whisper-large-v3-turbo", 3.0,
           "accurate transcription, still real-time on M-series", "mlx-asr", 3),
 
     # Semantic search, dedup, clustering, routing by similarity, RAG.
-    Entry("embed", "intfloat/multilingual-e5-base", 1.1,
+    Entry("embed", "intfloat/multilingual-e5-base", 2.1,
           "multilingual embeddings; the workhorse of any retrieval feature", "embed", 2),
-    Entry("embed", "BAAI/bge-m3", 2.3,
+    Entry("embed", "BAAI/bge-m3", 4.1,
           "stronger multilingual embeddings, long inputs", "embed", 4),
-    Entry("embed", "BAAI/bge-reranker-v2-m3", 2.3,
+    Entry("embed", "BAAI/bge-reranker-v2-m3", 4.1,
           "reranker — the cheapest large win in RAG quality", "plain", 4),
 ]
 

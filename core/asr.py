@@ -16,7 +16,12 @@ import wave
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_MODEL = os.getenv("ASR_MODEL", "mlx-community/whisper-small-mlx")
+# Замерено на 10 секундах русской речи, M4 Pro:
+#   whisper-small-mlx        90% слов верно, в 12 раз быстрее реального времени
+#   whisper-large-v3-turbo  100% слов верно, в 7 раз быстрее
+# Берём большую: запас по скорости семикратный, а ошибки в именах и датах
+# дальше по цепочке превращаются в неверные задачи.
+DEFAULT_MODEL = os.getenv("ASR_MODEL", "mlx-community/whisper-large-v3-turbo")
 
 
 @dataclass
