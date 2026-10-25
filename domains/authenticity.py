@@ -179,6 +179,17 @@ SPEC = TaskSpec(
     # Пропуском считается только приём из этого списка. Без него проверяющая
     # модель записывает в пропуски «Добрый день!» и продукт молчит.
     omission_types=MARKER_TYPES,
+    # Что код видит в тексте — ответ обязан назвать. Телефоны, смешанные
+    # алфавиты и неверный ИНН намеренно НЕ включены: это сигналы для
+    # трассировки и подсветки, а не повод забраковать ответ.
+    signal_markers={
+        "card_number": ("money_request", "code_request"),
+        "link": "external_link",
+        "secret_request": "code_request",
+    },
+    signal_type_field="markers[].type",
+    signal_verdict_field="assessment",
+    signal_unsafe_verdicts=("trust",),
     source_field="text",
     router=route,
     grade=grade,
@@ -264,3 +275,64 @@ def make_mock_handler(cases: list[dict]):
                           ensure_ascii=False)
 
     return handler
+
+
+# --------------------------------------------------------- ответ без модели
+
+# Что видит код, то он и называет. Соответствие сигнала детектора маркеру
+# ответа: это не догадка модели, а наблюдаемый факт в тексте.
+_SIGNAL_TO_MARKER = {
+    "card_number": "money_request",
+    "secret_request": "code_request",
+    "link": "external_link",
+}
+
+# Сигналы, каждый из которых сам по себе — основание не доверять сообщению.
+# Просьба кода и номер карты в чужом сообщении не имеют безобидного прочтения.
+_DECISIVE = ("secret_request", "card_number")
+
+
+def mechanical_answer(text: str) -> dict | None:
+    """Разбор сообщения без единого вызова модели.
+
+    Зачем это нулевой уровень каскада, а не запасной план. Часть приёмов
+    наблюдаема, а не угадываема: ссылка в тексте либо есть, либо нет; просьба
+    продиктовать код либо есть, либо нет. На такое не нужна модель — нужен
+    детектор. Такой ответ бесплатен, мгновенен и не галлюцинирует по
+    построению: каждая цитата взята из текста по позиции, а не написана.
+
+    Возвращает None, если наблюдаемых признаков нет: тогда «безопасно» решать
+    нельзя, и дальше идёт модель. Отсутствие улик не доказательство
+    невиновности.
+    """
+    from core.verify import find_mechanical_signals
+
+    signals = find_mechanical_signals(text)
+    markers, kinds = [], set()
+    for s in signals:
+        marker_type = _SIGNAL_TO_MARKER.get(s["kind"])
+        if not marker_type:
+            continue  # телефон, смешанный алфавит, ИНН — для подсветки, не для вердикта
+        kinds.add(s["kind"])
+        markers.append({"type": marker_type, "quote": s["quote"]})
+
+    if not markers:
+        return None
+
+    decisive = kinds & set(_DECISIVE)
+    assessment = "distrust" if decisive else "doubt"
+
+    if "secret_request" in kinds:
+        check_id = "C11"           # просят код из СМС, пароль, данные карты
+    elif "card_number" in kinds:
+        check_id = "C01"           # просьба о деньгах — перезвонить на старый номер
+    else:
+        check_id = "C04"           # ссылка — открыть сервис вручную
+
+    names = ", ".join(sorted(kinds))
+    return {
+        "markers": markers,
+        "assessment": assessment,
+        "check_id": check_id,
+        "explanation": f"разобрано без модели по наблюдаемым признакам: {names}",
+    }

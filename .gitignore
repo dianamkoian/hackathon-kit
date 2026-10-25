@@ -18,3 +18,6 @@ evals/report.json
 
 # звук создаётся командой scripts/make_audio_fixture.sh, в репозитории не хранится
 evals/audio/*.wav
+
+# база проверок: растёт при работе, в репозитории не нужна
+data/

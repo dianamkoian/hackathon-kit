@@ -16,8 +16,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.pipeline import confidence_floor, run, run_baseline
+from core.store import Store
 from core.providers import get_provider
-from domains.authenticity import SPEC, load_cases, make_mock_handler, present
+from domains.authenticity import (
+    SPEC, load_cases, make_mock_handler, mechanical_answer, present,
+)
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
@@ -27,6 +30,10 @@ app = FastAPI(title="hackathon-kit", version="0.1.0")
 # offline backend only answers prompts built from a known case — by design:
 # a demo that silently invents answers for unseen input is worse than one that
 # says it cannot.
+# Хранилище проверок. Две продуктовые задачи: «вы не первый, кому это
+# прислали» и растущий корпус настоящих сообщений — размеченных примеров
+# нам не хватает, а этот источник пополняется сам.
+_store = Store()
 _cases = load_cases()
 _provider = get_provider(mock_handler=make_mock_handler(_cases))
 
@@ -62,12 +69,55 @@ def run_endpoint(req: RunRequest) -> dict:
     if req.arm not in ("cascade", "baseline"):
         raise HTTPException(status_code=422, detail="arm must be cascade or baseline")
     runner = run if req.arm == "cascade" else run_baseline
+    seen_before = _store.seen_count(req.text)
     try:
         result = runner(SPEC, {"text": req.text}, _provider)
     except RuntimeError as exc:
-        # The mock backend raises on unseen input; say so plainly instead of 500.
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"arm": req.arm, **result.to_dict(), "product": present(result.data)}
+        # Модели нет или она не знает этот текст. Часть приёмов наблюдаема
+        # детекторами, без модели — отвечаем тем, что код реально видит, и
+        # честно помечаем ответ как механический.
+        fallback = mechanical_answer(req.text)
+        if fallback is None:
+            # Наблюдаемых признаков нет. Это не «безопасно»: отсутствие улик
+            # не доказательство невиновности, и говорить надо именно так.
+            fallback = {
+                "markers": [], "assessment": "doubt", "check_id": "C00",
+                "explanation": "наблюдаемых признаков не найдено; модель недоступна, "
+                               "поэтому вердикт не выносим",
+            }
+        _store.save(
+            text=req.text, status="mechanical",
+            assessment=fallback.get("assessment"), markers=fallback.get("markers"),
+            confidence=None, backend="mechanical", cost_usd=0.0, latency_ms=0.0,
+        )
+        return {
+            "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
+            "answered": True, "data": fallback, "confidence": None,
+            "reason": fallback["explanation"],
+            "tier_used": "mechanical", "product": present(fallback),
+            "trace": {"task_id": "mechanical", "cost_usd": 0.0,
+                      "model_latency_ms": 0.0, "wall_ms": 0.0, "models_used": [],
+                      "steps": [{"node": "signals", "ok": True,
+                                 "detail": fallback["explanation"], "model": None,
+                                 "cost_usd": 0.0, "latency_ms": 0.0,
+                                 "input_tokens": 0, "output_tokens": 0}]},
+        }
+
+    data = result.data if isinstance(result.data, dict) else {}
+    _store.save(
+        text=req.text, status=result.status, assessment=data.get("assessment"),
+        markers=data.get("markers"), confidence=result.confidence,
+        backend=_provider.name, cost_usd=result.trace.cost_usd,
+        latency_ms=result.trace.model_latency_ms,
+    )
+    return {"arm": req.arm, "seen_before": seen_before,
+            **result.to_dict(), "product": present(result.data)}
+
+
+@app.get("/stats")
+def stats() -> dict:
+    """Сколько проверок прошло через систему и чем они кончались."""
+    return _store.stats().to_dict()
 
 
 @app.get("/")
