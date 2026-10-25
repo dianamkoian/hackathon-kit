@@ -823,9 +823,18 @@ const NEWS_EXAMPLES = [
 // по тем же правилам, что domains/authenticity.py: первая фраза, без ссылок,
 // почты, телефонов и чисел длиннее трёх цифр.
 const SEARCH_NOISE = /https?:\/\/\S+|www\.\S+|\S+@\S+|\+?\d[\d\s()-]{6,}\d|\d{4,}/g;
+// Запрос — первая содержательная фраза: короткие выкрики в начале («СРОЧНО!»,
+// «Внимание!», «Мам, привет!») пропускаются — по ним поиск бесполезен.
+const QUERY_MIN_WORDS = 3;
+const clean = (s) => s.replace(SEARCH_NOISE, " ").split(/\s+/).join(" ").trim();
+const wordCount = (s) => (s.match(/[\p{L}\d]+/gu) || []).length;
+function newsQuery(text) {
+  const phrases = text.trim().split(/(?<=[.!?…])\s|\n/).map(clean).filter(Boolean);
+  const first = phrases.find((s) => wordCount(s) >= QUERY_MIN_WORDS) || phrases[0] || "";
+  return first.slice(0, 100).trim();
+}
 function newsSearchLinks(text) {
-  const first = text.trim().split(/(?<=[.!?…])\s|\n/)[0];
-  const query = first.replace(SEARCH_NOISE, " ").split(/\s+/).join(" ").slice(0, 100).trim();
+  const query = newsQuery(text);
   if (!query) return [];
   const q = encodeURIComponent(query);
   return [{ title: "Найти в Яндексе", url: `https://yandex.ru/search/?text=${q}` },
@@ -957,7 +966,7 @@ function render(body, original) {
   const markers = data.markers || [];
   renderVerdict(body, data, markers);
   renderMessage(original, markers, body.answered, $("message"), $("markers"), $("no-markers"));
-  renderCheck((body.product || {}).check);
+  renderCheck((body.product || {}).check, original);
   renderBarriers(body.trace || { steps: [] }, body.status === "mechanical");
   $("heard").hidden = !body.heard;
   if (body.heard) {
@@ -1035,7 +1044,7 @@ function linkHover(msgEl, listEl) {
   }
 }
 
-function renderCheck(check) {
+function renderCheck(check, text = "") {
   renderSearch($("check-search"), null);                    // ссылки прошлой проверки не тащим
   // C00 — «проверка не нужна», блок не показываем.
   $("check").hidden = !check || check.id === "C00";
@@ -1044,7 +1053,7 @@ function renderCheck(check) {
   $("check-why").textContent = check.why || "";
   $("check-time").textContent = humanTime(check.time_sec);
   $("check-time").hidden = !check.time_sec;
-  renderSearch($("check-search"), check);
+  renderSearch($("check-search"), check, text);
   $("outcome").hidden = true;
   $("choices").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false"));
 }
@@ -1052,8 +1061,12 @@ function renderCheck(check) {
 // Кнопки поиска (пока только у C20, «новость без источника»): ищет сам человек
 // на своём устройстве, Verka ничего не утверждает о правдивости. Только https.
 // Общая для Проверки и Тренировки, чтобы они не расходились.
-function renderSearch(el, check) {
-  const links = ((check && check.search) || []).filter((s) => /^https:\/\//.test(s.url || ""));
+// Если сервер прислал поиск, а текст сообщения известен, ссылки строятся на экране
+// по newsQuery — тогда «СРОЧНО!» в начале не превращается в запрос из одного слова.
+function renderSearch(el, check, text = "") {
+  const fromServer = (check && check.search) || [];
+  const links = (fromServer.length && text ? newsSearchLinks(text) : fromServer)
+    .filter((s) => /^https:\/\//.test(s.url || ""));
   el.innerHTML = links.map((s) =>
     `<a class="btn" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join("");
   el.hidden = !links.length;
@@ -1294,7 +1307,7 @@ async function quizEvidence() {
   const hasCheck = check && check.id !== "C00";
   $("quiz-check").textContent = hasCheck ? `Как проверить: ${check.action}`
     : !markers.length ? "Verka приёмов манипуляции не нашла." : "";
-  renderSearch($("quiz-search"), hasCheck ? check : null);
+  renderSearch($("quiz-search"), hasCheck ? check : null, item.text);
   return body;
 }
 
