@@ -104,7 +104,7 @@ SYSTEM = (
 MARKER_TYPES = (
     "money_request", "urgency", "new_contact", "authority", "secrecy",
     "code_request", "external_link", "prepayment", "too_good",
-    "unverifiable_proof", "remote_access",
+    "unverifiable_proof", "remote_access", "obfuscation",
 )
 
 VERIFIER_SYSTEM = (
@@ -165,7 +165,13 @@ def present(data: Any) -> dict:
     if not isinstance(data, dict):
         return {"assessment": "doubt", "check": check_card(ABSTAIN_CHECK_ID),
                 "abstained": True}
-    return {"assessment": data.get("assessment"),
+    # «Признаков не найдено» — не то же самое, что «сомневаюсь». Если валить их
+    # в одно состояние, продукт выглядит так, будто подозревает даже «привет»,
+    # и человек перестаёт верить предупреждениям вообще. Но и «всё чисто»
+    # сказать нельзя: отсутствие улик не доказательство невиновности.
+    no_markers = not data.get("markers")
+    state = "clean" if no_markers else data.get("assessment", "doubt")
+    return {"assessment": data.get("assessment"), "state": state,
             "check": check_card(data.get("check_id")), "abstained": False}
 
 
@@ -285,6 +291,10 @@ _SIGNAL_TO_MARKER = {
     "card_number": "money_request",
     "secret_request": "code_request",
     "link": "external_link",
+    "mixed_script": "obfuscation",
+    "money_phrase": "money_request",
+    "urgency_phrase": "urgency",
+    "new_contact_phrase": "new_contact",
 }
 
 # Сигналы, каждый из которых сам по себе — основание не доверять сообщению.
@@ -320,14 +330,21 @@ def mechanical_answer(text: str) -> dict | None:
         return None
 
     decisive = kinds & set(_DECISIVE)
-    assessment = "distrust" if decisive else "doubt"
+    # Сочетание «просьба денег + новый контакт» решающее, хотя каждый
+    # признак по отдельности встречается и в честных сообщениях.
+    combo = {"money_phrase", "new_contact_phrase"} <= kinds
+    assessment = "distrust" if (decisive or combo) else "doubt"
 
     if "secret_request" in kinds:
         check_id = "C11"           # просят код из СМС, пароль, данные карты
     elif "card_number" in kinds:
         check_id = "C01"           # просьба о деньгах — перезвонить на старый номер
-    else:
+    elif {"money_phrase", "new_contact_phrase"} & kinds:
+        check_id = "C01"           # просьба денег с нового контакта
+    elif "link" in kinds:
         check_id = "C04"           # ссылка — открыть сервис вручную
+    else:
+        check_id = "C18"           # подмена букв — текст маскируется от фильтров
 
     names = ", ".join(sorted(kinds))
     return {

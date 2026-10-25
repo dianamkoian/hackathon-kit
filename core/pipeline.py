@@ -124,6 +124,21 @@ def run(spec: TaskSpec, fields: dict, provider, *, floor: float | None = None,
             last_reason = f"invalid output: {exc}"
             continue
 
+        # Противоречие внутри ответа видно без всякой модели: если приёмы
+        # манипуляции названы, вердикт «доверять» им противоречит. Замерено на
+        # живой модели: она находит authority и new_contact и тут же ставит
+        # trust. Чинить это промптом дорого и ненадёжно, а проверить — дёшево.
+        if spec.signal_unsafe_verdicts and isinstance(data, dict):
+            verdict = data.get(spec.signal_verdict_field or "")
+            has_markers = bool(data.get(spec.quote_fields[0].split("[")[0])) \
+                if spec.quote_fields else False
+            if verdict in spec.signal_unsafe_verdicts and has_markers:
+                trace.add("coherence", False,
+                          detail=f"вердикт «{verdict}» при найденных приёмах — противоречие")
+                last_reason = f"ответ противоречив: «{verdict}» при найденных приёмах"
+                continue
+            trace.add("coherence", True, detail="вердикт не противоречит найденному")
+
         quote_problems = check_quotes(data, source_text, spec.quote_fields)
         if spec.quote_fields:
             trace.add(

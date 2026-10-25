@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -16,14 +17,18 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.pipeline import confidence_floor, run, run_baseline
+from core.profile import Profile, clarifying_question, missing_context
+from core.safeword import SafeWord, prompt_for
 from core.store import Store
 from core.providers import get_provider
+import api.ollama  # noqa: F401 — registers LLM_BACKEND=ollama (local models on Windows)
 from domains.authenticity import (
     SPEC, decisive_answer, load_cases, make_mock_handler, mechanical_answer,
     present,
 )
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+ROOT_TRAINING = Path(__file__).resolve().parent.parent / "evals" / "training.jsonl"
 
 app = FastAPI(title="hackathon-kit", version="0.1.0")
 
@@ -36,6 +41,12 @@ app = FastAPI(title="hackathon-kit", version="0.1.0")
 # нам не хватает, а этот источник пополняется сам.
 _store = Store()
 _cases = load_cases()
+_training = [json.loads(l) for l in (ROOT_TRAINING.read_text(encoding='utf-8').splitlines())
+             if l.strip()] if ROOT_TRAINING.exists() else []
+# Контрольный вопрос — одна семья на демо. Аккаунтов нет и не нужно.
+_safeword: SafeWord | None = None
+# Личный контекст: только то, что человек ввёл сам, и только для подсказок.
+_profile = Profile()
 # Сервис обязан подняться, даже если модель настроена неверно. На площадке
 # не будет времени чинить окружение: пусть работают детекторы и честный отказ,
 # а не «сервер не стартовал». Деградация, а не падение.
@@ -47,6 +58,20 @@ except Exception as exc:  # noqa: BLE001 — любая беда с модель
     _provider_error = f"{type(exc).__name__}: {exc}"
     print(f"[server] модель недоступна ({_provider_error}); "
           f"работаем только на детекторах")
+
+
+class ProfileRequest(BaseModel):
+    people: list[dict] = []
+    employer: str = ""
+    bank: str = ""
+    services: list[str] = []
+    expecting: list[str] = []
+
+
+class SafeWordRequest(BaseModel):
+    person: str
+    question: str
+    answer: str
 
 
 class RunRequest(BaseModel):
@@ -100,6 +125,9 @@ def run_endpoint(req: RunRequest) -> dict:
                 "answered": True, "data": quick, "confidence": None,
                 "reason": quick["explanation"], "tier_used": "mechanical",
                 "product": present(quick),
+                "safeword": prompt_for(_safeword, quick.get("markers")),
+                "question": (lambda q: q.to_dict() if q else None)(
+                    clarifying_question(quick.get("markers"), req.text, _profile)),
                 "trace": {"task_id": "mechanical", "cost_usd": 0.0,
                           "model_latency_ms": 0.0, "wall_ms": 0.0, "models_used": [],
                           "steps": [{"node": "signals", "ok": True,
@@ -123,8 +151,8 @@ def run_endpoint(req: RunRequest) -> dict:
             # не доказательство невиновности, и говорить надо именно так.
             fallback = {
                 "markers": [], "assessment": "doubt", "check_id": "C00",
-                "explanation": "наблюдаемых признаков не найдено; модель недоступна, "
-                               "поэтому вердикт не выносим",
+                "explanation": "приёмов манипуляции в тексте не найдено. "
+                               "Это не гарантия: мы проверяем приёмы, а не факты",
             }
         _store.save(
             text=req.text, status="mechanical",
@@ -136,6 +164,9 @@ def run_endpoint(req: RunRequest) -> dict:
             "answered": True, "data": fallback, "confidence": None,
             "reason": fallback["explanation"],
             "tier_used": "mechanical", "product": present(fallback),
+            "safeword": prompt_for(_safeword, fallback.get("markers")),
+            "question": (lambda q: q.to_dict() if q else None)(
+                clarifying_question(fallback.get("markers"), req.text, _profile)),
             "trace": {"task_id": "mechanical", "cost_usd": 0.0,
                       "model_latency_ms": 0.0, "wall_ms": 0.0, "models_used": [],
                       "steps": [{"node": "signals", "ok": True,
@@ -151,8 +182,12 @@ def run_endpoint(req: RunRequest) -> dict:
         backend=_provider.name, cost_usd=result.trace.cost_usd,
         latency_ms=result.trace.model_latency_ms,
     )
+    data_markers = (result.data or {}).get("markers") if isinstance(result.data, dict) else None
     return {"arm": req.arm, "seen_before": seen_before,
-            **result.to_dict(), "product": present(result.data)}
+            **result.to_dict(), "product": present(result.data),
+            "safeword": prompt_for(_safeword, data_markers),
+            "question": (lambda q: q.to_dict() if q else None)(
+                clarifying_question(data_markers, req.text, _profile))}
 
 
 @app.post("/run-audio")
@@ -200,6 +235,72 @@ async def run_audio(file: UploadFile = File(...)) -> dict:
         "model": heard.model,
     }
     return body
+
+
+@app.post("/profile")
+def set_profile(req: ProfileRequest) -> dict:
+    """Что человек рассказал о себе: близкие, работа, банк, чего он ждёт.
+
+    Нужно для двух вещей: не задавать вопрос, ответ на который уже известен,
+    и делать подсказки конкретными. Никуда не уходит.
+    """
+    global _profile
+    _profile = Profile.from_dict(req.model_dump())
+    return {"ok": True, "profile": _profile.to_dict(),
+            "still_missing": missing_context(_profile)}
+
+
+@app.get("/profile")
+def get_profile() -> dict:
+    return {"profile": _profile.to_dict(), "still_missing": missing_context(_profile)}
+
+
+@app.post("/safeword")
+def set_safeword(req: SafeWordRequest) -> dict:
+    """Контрольный вопрос для близкого человека.
+
+    Ответ не хранится — только его отпечаток: это семейная тайна, и знать её
+    серверу незачем.
+    """
+    global _safeword
+    try:
+        _safeword = SafeWord.create(req.person, req.question, req.answer)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"ok": True, **_safeword.to_dict()}
+
+
+@app.get("/safeword")
+def get_safeword() -> dict:
+    return _safeword.to_dict() if _safeword else {"person": None, "question": None}
+
+
+@app.get("/training")
+def training(n: int = 10) -> list[dict]:
+    """Настоящие сообщения для тренировки, без подсказки о правильном ответе."""
+    import random
+
+    if not _training:
+        raise HTTPException(status_code=503,
+                            detail="набор для тренировки не собран: "
+                                   "python3 scripts/build_training_set.py")
+    picked = random.sample(_training, min(n, len(_training)))
+    return [{"id": r["id"], "text": r["text"]} for r in picked]
+
+
+@app.post("/training/check")
+def training_check(req: dict) -> dict:
+    """Сверяет догадку человека с правильным ответом и показывает приёмы."""
+    row = next((r for r in _training if r["id"] == req.get("id")), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="такого примера нет")
+    guess = str(req.get("guess", "")).strip().casefold()
+    return {
+        "id": row["id"], "truth": row["truth"],
+        "correct": guess == row["truth"].casefold(),
+        "markers": row.get("markers", []),
+        "text": row["text"],
+    }
 
 
 @app.get("/stats")

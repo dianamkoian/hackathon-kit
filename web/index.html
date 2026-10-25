@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Второе мнение</title>
+<title>Verka</title>
 <!--
   Один файл, без сборки и без CDN — намеренно: страницу отдаёт маршрут `/` в
   api/server.py, она работает офлайн на площадке и через туннель, и её может
@@ -64,8 +64,12 @@
            margin-bottom:var(--s4); }
   .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
   .brand svg { width:40px; height:40px; flex:none; }
-  /* Знак и подпись — гротеском, а не антиквой: антиква в логотипе читалась как СМИ. */
-  .brand span { font:700 21px/1 var(--sans); letter-spacing:-.03em; }
+  /* Знак и подпись — гротеском, а не антиквой: антиква в логотипе читалась как СМИ.
+     После названия — текущий тариф вдвое мельче, подсвечен как цитата. */
+  .wordmark { font:700 26px/1 var(--sans); letter-spacing:-.03em; }
+  .tier { font:600 13px/1 var(--mono); letter-spacing:0; background:var(--accent);
+          color:var(--accent-ink); padding:3px 6px; border-radius:3px; margin-left:6px;
+          vertical-align:4px; }
   nav { display:flex; gap:var(--s3); flex-wrap:wrap; align-items:center; }
   nav a { font-size:12px; letter-spacing:.12em; text-transform:uppercase; text-decoration:none;
           color:var(--muted); padding:6px 0; }
@@ -207,6 +211,7 @@
   .plan .for { color:var(--muted); font-size:15px; margin:4px 0 var(--s2); }
   .plan .price { font:700 36px/1.1 var(--serif); }
   .plan .price small { font:400 15px var(--sans); color:var(--muted); }
+  .plan .price.ask { font-size:26px; }
   .plan ul { list-style:none; padding:0; margin:var(--s2) 0 var(--s3); flex:1; font-size:15px; }
   .plan li { padding:6px 0; border-bottom:1px solid var(--line); }
   .plan .btn { width:100%; }
@@ -258,7 +263,7 @@
 <body>
 <main>
   <header>
-    <a class="brand" href="#/" aria-label="Второе мнение — на главную">
+    <a class="brand" href="#/" aria-label="Verka — на главную">
       <svg id="logo" viewBox="0 0 120 120" aria-hidden="true">
         <rect x="4" y="4" width="112" height="112" rx="26" fill="#1d1b18" style="stroke:var(--logo-edge)" stroke-width="3"/>
         <circle cx="22" cy="38" r="3.5" fill="#6f6a62"/>
@@ -270,7 +275,7 @@
         <rect x="80" y="51" width="9" height="18" fill="#1d1b18"/>
         <path d="M38 82h28" stroke="#6f6a62" stroke-width="7" stroke-linecap="round"/>
       </svg>
-      <span>Второе мнение</span>
+      <span class="wordmark">Verka<span class="tier" id="tier">pro</span></span>
     </a>
     <nav aria-label="Разделы">
       <a href="#/">Проверка</a>
@@ -438,7 +443,7 @@
         уже присылали другим» и учиться на настоящих примерах. Не вставляйте в проверку
         пароли и коды из СМС: для разбора они не нужны. Голосовое распознаётся на нашем
         сервере, сама запись не сохраняется. История в кабинете хранится у вас в браузере.</dd>
-      <dt>Чем «Для организаций» отличается от остальных?</dt>
+      <dt>Чем enterprise отличается от остальных?</dt>
       <dd>Тот же разбор, но через API: банк или оператор встраивает проверку в своё приложение
         и получает ответ вместе с полной трассировкой.</dd>
     </dl>
@@ -902,22 +907,30 @@ function quizNext() {
 // ===================================================================
 // 7. Тарифы и кабинет. Сервера для аккаунтов нет, поэтому всё — демо в
 //    localStorage этого браузера. Тариф или цену меняют только в PLANS;
-//    цены утверждены в team/вопросы/006.
+//    цены утверждены в team/вопросы/006, названия lite / pro / enterprise —
+//    в team/решения/007. По умолчанию — pro: так продукт показывают на защите.
 // ===================================================================
 const PLANS = [
-  { id: "free", name: "Бесплатно", for: "для себя", price: 0, period: "",
+  { id: "lite", name: "lite", for: "для себя", price: 0, period: "",
     perDay: 5,
     features: ["5 проверок в день", "вердикт, цитаты и проверка", "история в браузере"] },
-  { id: "family", name: "Семья", for: "до 5 человек", price: 199, period: "в месяц",
+  { id: "pro", name: "pro", for: "для семьи, до 5 человек", price: 199, period: "в месяц",
     perDay: Infinity, best: true,
     features: ["проверки без лимита", "до 5 участников, включая родителей",
                "сообщить близкому одной кнопкой", "сравнение с одной моделью"] },
-  { id: "org", name: "Для организаций", for: "банки, операторы, сервисы", price: null,
+  { id: "enterprise", name: "enterprise", for: "банки, операторы, сервисы", price: null,
     period: "", perDay: Infinity,
     features: ["доступ по API: POST /run", "полная трассировка каждого ответа",
                "отчёт о качестве на ваших данных", "свой порог отказа"] },
 ];
-const planById = (id) => PLANS.find((p) => p.id === id) || PLANS[0];
+const DEFAULT_PLAN = "pro";
+// Старые id тарифов из браузеров, где выбор сделан до переименования.
+const OLD_PLAN = { free: "lite", family: "pro", org: "enterprise" };
+const currentPlanId = () => { const id = store.load().plan; return OLD_PLAN[id] || id || DEFAULT_PLAN; };
+const planById = (id) => PLANS.find((p) => p.id === (OLD_PLAN[id] || id))
+  || PLANS.find((p) => p.id === DEFAULT_PLAN);
+// Тариф в шапке после названия: Verka pro.
+function renderTier() { $("tier").textContent = planById(currentPlanId()).name; }
 
 // Хранилище может быть недоступно (приватное окно, блокировка) — тогда
 // страница работает, просто ничего не запоминает.
@@ -950,10 +963,10 @@ function record(body, text) {
 // Лимит не блокирует проверку: отказать в помощи в момент обмана хуже,
 // чем недополучить оплату. Только напоминаем.
 function renderUsage() {
-  const plan = planById(store.load().plan);
+  const plan = planById(currentPlanId());
   const used = usedToday();
   $("usage").innerHTML = plan.perDay === Infinity
-    ? `Тариф «${escapeHtml(plan.name)}»: проверки без лимита`
+    ? `Verka ${escapeHtml(plan.name)}: проверки без лимита`
     : used < plan.perDay
       ? `Сегодня ${used} из ${plan.perDay} бесплатных проверок`
       : `Бесплатные проверки на сегодня закончились — проверка всё равно сработает. `
@@ -961,13 +974,13 @@ function renderUsage() {
 }
 
 function renderPlans() {
-  const current = store.load().plan || "free";
+  const current = currentPlanId();
   $("plans").innerHTML = PLANS.map((p) => `
     <article class="plan">
       ${p.best ? '<p class="label" style="margin-bottom:var(--s1)">Рекомендуем</p>' : '<p class="label" style="margin-bottom:var(--s1)">&nbsp;</p>'}
-      <h3>${escapeHtml(p.name)}</h3>
+      <h3><span class="wordmark">Verka<span class="tier">${escapeHtml(p.name)}</span></span></h3>
       <div class="for">${escapeHtml(p.for)}</div>
-      <div class="price">${p.price === null ? "по запросу"
+      <div class="price${p.price === null ? " ask" : ""}">${p.price === null ? "по запросу"
         : p.price === 0 ? "0 ₽" : `${p.price} ₽ <small>${escapeHtml(p.period)}</small>`}</div>
       <ul>${p.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
       ${p.id === current
@@ -985,9 +998,9 @@ function renderAccount() {
   $("acc-name").value = data.name || "";
   $("acc-trusted").value = data.trusted || "";
 
-  const plan = planById(data.plan);
+  const plan = planById(currentPlanId());
   const used = usedToday();
-  $("acc-plan").textContent = plan.name;
+  $("acc-plan").innerHTML = `<span class="wordmark">Verka<span class="tier">${escapeHtml(plan.name)}</span></span>`;
   $("acc-plan-for").textContent = plan.price ? `${plan.price} ₽ ${plan.period} · ${plan.for}` : plan.for;
   const limited = plan.perDay !== Infinity;
   $("acc-bar").hidden = !limited;
@@ -1026,6 +1039,7 @@ function route() {
   if (view === "plans") renderPlans();
   if (view === "account") renderAccount();
   if (view === "check") renderUsage();
+  renderTier();
   if (view === "quiz" && !quiz.items.length) quizStart();
   window.scrollTo(0, 0);
 }
