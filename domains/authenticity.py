@@ -172,8 +172,14 @@ def _search_links(text: str) -> list[dict]:
     """
     from urllib.parse import quote
 
-    first = re.split(r"(?<=[.!?…])\s|\n", text.strip(), maxsplit=1)[0]
-    query = " ".join(_SEARCH_NOISE.sub(" ", first).split())[:100].strip()
+    # Короткая первая фраза («СРОЧНО!») — плохой запрос: берём первую из трёх
+    # слов и длиннее, иначе первую как есть. Так же делает экран (newsQuery).
+    phrases = [" ".join(_SEARCH_NOISE.sub(" ", s).split())
+               for s in re.split(r"(?<=[.!?…])\s|\n", text.strip())]
+    phrases = [s for s in phrases if s]
+    first = next((s for s in phrases if len(re.findall(r"\w+", s)) >= 3),
+                 phrases[0] if phrases else "")
+    query = first[:100].strip()
     if not query:
         return []
     q = quote(query)
