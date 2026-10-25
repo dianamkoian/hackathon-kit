@@ -47,6 +47,7 @@ MARKER_TYPES = [
     "too_good",        # приз, компенсация, доходность, лёгкий заработок
     "unverifiable_proof",  # скриншот, фото, голосовое как «доказательство»
     "remote_access",   # установить приложение удалённого доступа
+    "obfuscation",     # подмена букв похожими из другого алфавита
     "spread_call",     # перешлите всем, поделитесь, распространите
     "suppression",     # власти скрывают, по телевизору молчат, пока не удалили
 ]
@@ -104,13 +105,6 @@ SYSTEM = (
     "4. `explanation`: одна-две фразы на русском, простым языком, без запугивания.\n\n"
     f"Типы маркеров: {', '.join(MARKER_TYPES)}.\n\n"
     f"Каталог проверок:\n{_catalog()}"
-)
-
-MARKER_TYPES = (
-    "money_request", "urgency", "new_contact", "authority", "secrecy",
-    "code_request", "external_link", "prepayment", "too_good",
-    "unverifiable_proof", "remote_access", "obfuscation",
-    "spread_call", "suppression",
 )
 
 VERIFIER_SYSTEM = (
