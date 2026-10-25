@@ -7,226 +7,247 @@
 <!--
   Один файл, без сборки и без CDN — намеренно: страницу отдаёт маршрут `/` в
   api/server.py, она работает офлайн на площадке и через туннель, и её может
-  править любой ассистент. Порядок внутри:
-    1. стили: токены цвета → каркас → карточки по порядку на экране
-    2. разметка по страницам (data-view): проверка (#/) · тарифы (#/plans) · кабинет (#/account)
-    3. скрипт: словари подписей → клиент API → состояния экрана → отрисовка →
-       тарифы и кабинет (демо в localStorage) → запуск
+  править любой ассистент. Поэтому и логотип встроен SVG-кодом, а не файлом.
+
+  Стиль — «тёплый Tiffany» (команды 006 и 011): кремовая бумага, чёрный текст,
+  ОДИН акцент #81D8D0 — только кнопка «Проверить» и подсветка цитат. Волосяные
+  линии вместо рамок, антиква в заголовках, мелкие подписи прописными с
+  разрядкой, ни градиентов, ни теней. Цвет вердикта — только в одном слове.
+
+  Порядок внутри:
+    1. стили: токены → каркас → страницы по порядку
+    2. разметка по страницам (data-view): проверка #/ · тренировка #/quiz ·
+       тарифы #/plans · кабинет #/account
+    3. скрипт: словари → клиент API → состояния → отрисовка → голосовые →
+       тренировка → тарифы и кабинет → запуск
   Формат ответа сервера не меняем: на него завязаны проверки и примеры.
 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cpath d='M14 22h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10H40l-16 14V72h-10A10 10 0 0 1 4 62V32a10 10 0 0 1 10-10z' fill='%23fbf8f2' stroke='%231d1b18' stroke-width='7' stroke-linejoin='round'/%3E%3Cpath d='M50 44h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10h-10v14L80 94H50a10 10 0 0 1-10-10V54a10 10 0 0 1 10-10z' fill='%2381D8D0' stroke='%231d1b18' stroke-width='7' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
   /* ---------- 1. токены ---------- */
   :root {
-    --bg:#f6f6f4; --panel:#fff; --ink:#1a1a19; --muted:#6b6b68; --line:#e4e4e1;
-    --accent:#2b5fd9; --accent-ink:#fff;
-    --ok:#157f4a;  --ok-bg:#e8f5ee;
-    --warn:#9a6600; --warn-bg:#fdf3dd;
-    --bad:#b3261e; --bad-bg:#fbe9e7;
-    --mark:#ffe8a3; --mark-ink:#5a4200; --mark-hot:#ffcf4a;
+    --paper:#fbf8f2; --ink:#1d1b18; --muted:#7a746b; --line:#e6e0d6; --field:#fffdf9;
+    --accent:#81D8D0; --accent-ink:#1d1b18; --mark:#c6ece8; --mark-ink:#11332f; --mark-hot:#81D8D0;
+    --ok:#2f7d5b; --warn:#9a6a12; --bad:#b23a2e;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --radius:12px;
+    --s1:8px; --s2:16px; --s3:32px; --s4:64px;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg:#141517; --panel:#1d1e21; --ink:#ececeb; --muted:#9a9a97; --line:#2f3136;
-      --accent:#7aa2ff; --accent-ink:#0d1220;
-      --ok:#4cc38a;  --ok-bg:#15291f;
-      --warn:#e3b341; --warn-bg:#2b2412;
-      --bad:#ff6b60; --bad-bg:#2e1715;
-      --mark:#4a3c10; --mark-ink:#ffdf8a; --mark-hot:#7a5f12;
+      --paper:#151412; --ink:#f3efe7; --muted:#a39d92; --line:#2e2b27; --field:#1c1a17;
+      --accent:#81D8D0; --accent-ink:#10201e; --mark:#24433f; --mark-ink:#dffaf6; --mark-hot:#3d6d68;
+      --ok:#6fcf9f; --warn:#e5b65a; --bad:#f08072;
     }
   }
 
   /* ---------- каркас ---------- */
   * { box-sizing:border-box; }
   [hidden] { display:none !important; }
-  body { margin:0; padding:20px 16px 48px; background:var(--bg); color:var(--ink);
-         font:15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width:820px; margin:0 auto; }
-  header { display:flex; justify-content:space-between; align-items:flex-start;
-           gap:12px; flex-wrap:wrap; margin-bottom:16px; }
-  h1 { font-size:24px; margin:0; letter-spacing:-.01em; }
-  .sub { color:var(--muted); font-size:14px; margin:4px 0 0; max-width:560px; }
-  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em;
-       color:var(--muted); margin:0 0 10px; font-weight:600; }
-  .panel { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
-           padding:16px; margin-bottom:14px; }
-  .muted { color:var(--muted); font-size:13px; }
-  .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px;
-          padding:4px 10px; border:1px solid var(--line); border-radius:999px;
-          background:var(--panel); color:var(--muted); white-space:nowrap; }
-  .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); }
-  .dot.live { background:var(--ok); } .dot.mock { background:var(--warn); }
-  .dot.down { background:var(--bad); }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font:17px/1.6 var(--sans); -webkit-font-smoothing:antialiased; }
+  main { max-width:860px; margin:0 auto; padding:var(--s3) 24px var(--s4); }
+  a { color:inherit; }
+  .label { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+           font-weight:500; margin:0 0 var(--s2); }
+  .muted { color:var(--muted); }
+  .small { font-size:14px; }
+  .rule { border:none; border-top:1px solid var(--line); margin:var(--s4) 0; }
+  section { margin-bottom:var(--s4); }
+
+  /* ---------- шапка ---------- */
+  header { display:flex; justify-content:space-between; align-items:center; gap:var(--s2);
+           flex-wrap:wrap; padding-bottom:var(--s2); border-bottom:1px solid var(--line);
+           margin-bottom:var(--s4); }
+  .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
+  .brand svg { width:40px; height:40px; flex:none; }
+  .brand span { font:700 22px/1 var(--serif); letter-spacing:-.02em; }
+  nav { display:flex; gap:var(--s3); flex-wrap:wrap; align-items:center; }
+  nav a { font-size:12px; letter-spacing:.12em; text-transform:uppercase; text-decoration:none;
+          color:var(--muted); padding:6px 0; }
+  nav a:hover { color:var(--ink); }
+  nav a[aria-current="page"] { color:var(--ink); text-decoration:underline;
+                               text-underline-offset:8px; text-decoration-thickness:1px; }
+  .status { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .status::before { content:"●"; margin-right:6px; color:var(--muted); }
+  .status.live::before { color:var(--ok); } .status.mock::before { color:var(--warn); }
+  .status.down::before { color:var(--bad); }
+
+  h1 { font:700 clamp(38px, 7vw, 56px)/1.04 var(--serif); letter-spacing:-.03em; margin:0; }
+  .lead { font-size:18px; color:var(--muted); max-width:600px; margin:var(--s2) 0 var(--s4); }
 
   /* ---------- ввод ---------- */
-  textarea { width:100%; min-height:110px; resize:vertical; padding:12px;
-             border:1px solid var(--line); border-radius:8px; background:var(--bg);
-             color:var(--ink); font-family:inherit; font-size:15px; line-height:1.5; }
-  textarea:focus, select:focus, button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
-  .row .grow { flex:1 1 200px; min-width:0; }
-  button { font:inherit; padding:9px 16px; border-radius:8px; cursor:pointer;
-           border:1px solid var(--line); background:var(--panel); color:var(--ink); }
-  button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink);
-                   font-weight:600; }
-  button.link { border:none; background:none; color:var(--accent); padding:4px 0; }
-  button:disabled { opacity:.55; cursor:default; }
-  select { font:inherit; font-size:14px; padding:8px; border-radius:8px; width:100%;
-           border:1px solid var(--line); background:var(--panel); color:var(--ink); }
-  kbd { font:11px var(--mono); padding:1px 5px; border:1px solid var(--line);
-        border-radius:4px; color:var(--muted); }
+  textarea { width:100%; min-height:150px; resize:vertical; padding:var(--s2);
+             border:1px solid var(--line); border-radius:4px; background:var(--field); color:var(--ink);
+             font-family:var(--sans); font-size:18px; line-height:1.6; }
+  textarea:focus, select:focus, input:focus, button:focus-visible, a:focus-visible {
+    outline:2px solid var(--accent); outline-offset:2px; }
+  .row { display:flex; gap:var(--s2); flex-wrap:wrap; align-items:center; margin-top:var(--s2); }
+  .row .grow { flex:1 1 220px; min-width:0; }
+  button { font:inherit; cursor:pointer; color:var(--ink); }
+  .btn { font-size:16px; font-weight:600; padding:14px 28px; border-radius:4px;
+         border:1px solid var(--ink); background:transparent; text-decoration:none;
+         display:inline-block; text-align:center; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .link { border:none; background:none; padding:4px 0; text-decoration:underline;
+          text-underline-offset:4px; color:var(--muted); font-size:14px; }
+  select { font:inherit; font-size:15px; padding:12px; border-radius:4px; width:100%;
+           border:1px solid var(--line); background:var(--field); color:var(--ink); }
+  kbd { font:11px var(--mono); padding:1px 5px; border:1px solid var(--line); border-radius:3px; }
+  .usage { margin-top:var(--s2); font-size:14px; color:var(--muted); }
+  .usage a { color:var(--ink); }
 
-  /* ---------- пустое состояние ---------- */
-  .how { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
-  .how div { padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); }
-  .how b { display:block; margin-bottom:4px; }
-  .how span { color:var(--muted); font-size:13px; }
-  .how .n { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%;
-            background:var(--accent); color:var(--accent-ink); font-size:12px; font-weight:700;
-            margin-bottom:6px; }
+  /* голосовое */
+  .voice { display:flex; gap:var(--s2); flex-wrap:wrap; align-items:center; margin-top:var(--s2);
+           padding-top:var(--s2); border-top:1px solid var(--line); font-size:15px; }
+  .voice .btn { padding:10px 18px; font-size:15px; }
+  .rec-dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--bad);
+             margin-right:8px; animation:blink 1s infinite; }
+  .heard { margin-top:var(--s2); font-size:15px; color:var(--muted); }
+
+  /* ---------- как это работает: три строки через линию ---------- */
+  .how { list-style:none; padding:0; margin:0; }
+  .how li { padding:var(--s2) 0; border-top:1px solid var(--line); display:grid;
+            grid-template-columns:220px 1fr; gap:var(--s2); }
+  .how li:last-child { border-bottom:1px solid var(--line); }
+  .how b { font:700 20px/1.3 var(--serif); letter-spacing:-.01em; }
+  .how span { color:var(--muted); }
 
   /* ---------- загрузка ---------- */
-  .steps-live { list-style:none; margin:0; padding:0; }
-  .steps-live li { padding:4px 0; color:var(--muted); font-size:14px; }
+  .steps-live { list-style:none; padding:0; margin:0; }
+  .steps-live li { padding:6px 0; color:var(--muted); }
   .steps-live li.on { color:var(--ink); }
   .steps-live li.on::before { content:"● "; color:var(--accent); animation:blink 1s infinite; }
-  .steps-live li.done::before { content:"✓ "; color:var(--ok); }
+  .steps-live li.done::before { content:"✓ "; }
   .steps-live li:not(.on):not(.done)::before { content:"○ "; }
   @keyframes blink { 50% { opacity:.3; } }
 
   /* ---------- ошибка ---------- */
-  .error { border-color:var(--bad); background:var(--bad-bg); }
-  .error b { color:var(--bad); }
-  .error code { font:13px var(--mono); background:var(--panel); padding:2px 6px; border-radius:4px; }
+  .error { border-top:1px solid var(--bad); padding-top:var(--s2); }
+  .error b { font:700 22px var(--serif); color:var(--bad); }
+  .error code { font:14px var(--mono); }
 
-  /* ---------- вердикт ---------- */
-  .verdict { display:flex; gap:14px; align-items:flex-start; border-width:2px; }
-  .verdict .icon { flex:none; width:40px; height:40px; border-radius:50%; display:grid;
-                   place-items:center; font-size:20px; font-weight:700; color:var(--panel); }
-  .verdict .title { font-size:20px; font-weight:700; line-height:1.3; }
-  .verdict .why { margin-top:4px; }
-  .v-trust    { border-color:var(--ok);   background:var(--ok-bg); }
-  .v-doubt    { border-color:var(--warn); background:var(--warn-bg); }
-  .v-distrust { border-color:var(--bad);  background:var(--bad-bg); }
-  .v-trust .icon { background:var(--ok); } .v-doubt .icon { background:var(--warn); }
-  .v-distrust .icon { background:var(--bad); }
-  .v-trust .title { color:var(--ok); } .v-doubt .title { color:var(--warn); }
-  .v-distrust .title { color:var(--bad); }
-  .abstain-note { margin-top:8px; font-size:13px; }
+  /* ---------- результат: вердикт строкой, цвет — в одном слове ---------- */
+  .verdict .word { font:700 clamp(40px, 8vw, 64px)/1.02 var(--serif); letter-spacing:-.03em; margin:0; }
+  .w-trust { color:var(--ok); } .w-doubt { color:var(--warn); } .w-distrust { color:var(--bad); }
+  .verdict .why { font-size:18px; margin:var(--s2) 0 0; max-width:640px; }
+  .seen { margin-top:var(--s2); font-size:15px; }
+  .seen b { font-weight:600; }
 
-  /* ---------- проверка ---------- */
-  .check { border-left:4px solid var(--accent); }
-  .check .act { font-size:17px; font-weight:600; line-height:1.4; }
-  .check .why { color:var(--muted); font-size:14px; margin-top:6px; }
-  .check .time { margin-top:10px; }
-
-  /* ---------- сообщение и приёмы ---------- */
-  .message { white-space:pre-wrap; word-break:break-word; padding:12px; border-radius:8px;
-             background:var(--bg); border:1px solid var(--line); line-height:1.8; }
-  mark { background:var(--mark); color:var(--mark-ink); padding:1px 2px; border-radius:3px;
+  /* цитаты в тексте — главное, что показывает экран */
+  .message { white-space:pre-wrap; word-break:break-word; font:400 21px/1.75 var(--serif);
+             padding:var(--s3) 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  mark { background:var(--mark); color:var(--mark-ink); padding:2px 3px; border-radius:2px;
          transition:background .15s; }
-  mark sup { font:700 10px var(--mono); margin-left:2px; }
-  mark.hot, .markers li.hot { background:var(--mark-hot); }
-  .markers { list-style:none; padding:0; margin:12px 0 0; }
-  .markers li { display:grid; grid-template-columns:24px 1fr; gap:2px 8px; padding:8px 6px;
-                border-bottom:1px solid var(--line); border-radius:6px; font-size:14px; }
-  .markers li:last-child { border-bottom:none; }
-  .markers .n { font:700 12px var(--mono); color:var(--mark-ink); background:var(--mark);
-                border-radius:4px; text-align:center; height:20px; line-height:20px; }
-  .markers .mtype { font-weight:600; }
+  mark sup { font:700 11px var(--mono); margin-left:3px; }
+  mark.hot { background:var(--mark-hot); }
+  .markers { list-style:none; padding:0; margin:0; }
+  .markers li { display:grid; grid-template-columns:40px 1fr; gap:2px var(--s2); padding:var(--s2) 0;
+                border-bottom:1px solid var(--line); }
+  .markers li.hot { background:var(--mark); }
+  .markers .n { font:700 14px var(--mono); color:var(--muted); padding-top:3px; }
+  .markers .mtype { font-weight:600; font-size:18px; }
   .markers .mquote { grid-column:2; color:var(--muted); }
-  .none { color:var(--muted); font-size:14px; margin-top:10px; }
+  .none { color:var(--muted); margin:var(--s2) 0 0; }
 
-  /* ---------- конвейер (видимая оркестрация) ---------- */
-  .pipeline { display:flex; flex-wrap:wrap; gap:6px; list-style:none; padding:0; margin:0; }
-  .pipeline li { display:flex; align-items:center; gap:6px; font-size:13px; padding:5px 10px;
-                 border-radius:999px; border:1px solid var(--line); background:var(--bg); }
-  .pipeline li.ok b { color:var(--ok); } .pipeline li.fail b { color:var(--bad); }
-  .pipeline li.fail { border-color:var(--bad); }
-  .totals { color:var(--muted); font:12px var(--mono); margin-top:10px; }
-  details summary { cursor:pointer; color:var(--accent); font-size:14px; margin-top:12px; }
-  .scroll { overflow-x:auto; margin-top:10px; }
-  table { width:100%; border-collapse:collapse; font-size:12.5px; min-width:560px; }
-  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-size:11px; text-transform:uppercase; }
+  /* одна проверка — самое крупное действие */
+  .check .act { font:700 clamp(26px, 4.5vw, 34px)/1.2 var(--serif); letter-spacing:-.02em; margin:0; }
+  .check .why { color:var(--muted); margin:var(--s1) 0 0; }
+  .check .time { margin-top:var(--s2); font-size:12px; letter-spacing:.12em; text-transform:uppercase; }
+  .after { margin-top:var(--s3); }
+  .after .choices { display:flex; flex-wrap:wrap; gap:var(--s1); }
+  .after .btn { padding:10px 18px; font-size:15px; font-weight:500; border-color:var(--line); }
+  .after .btn[aria-pressed="true"] { border-color:var(--ink); }
+  .after ol { margin:var(--s2) 0 0; padding-left:22px; }
+  .after .out-title { font:700 20px var(--serif); margin-top:var(--s2); }
+
+  /* конвейер — как отчёт VirusTotal: «N из M проверок пройдено» */
+  .passed { font:700 28px/1.2 var(--serif); letter-spacing:-.02em; margin:0 0 var(--s2); }
+  .barriers { list-style:none; padding:0; margin:0; }
+  .barriers li { display:grid; grid-template-columns:28px 190px 1fr auto; gap:var(--s2);
+                 align-items:baseline; padding:12px 0; border-bottom:1px solid var(--line); }
+  .barriers li:first-child { border-top:1px solid var(--line); }
+  .barriers .mark-ok { color:var(--ok); font-weight:700; }
+  .barriers .mark-bad { color:var(--bad); font-weight:700; }
+  .barriers .what { color:var(--muted); font-size:15px; }
+  .barriers .who { font:12px var(--mono); color:var(--muted); white-space:nowrap; }
+  .totals { color:var(--muted); font:13px var(--mono); margin-top:var(--s2); }
+  .compare { display:grid; grid-template-columns:1fr 1fr; margin-top:var(--s2);
+             border-top:1px solid var(--line); }
+  .compare > div { padding:var(--s2) var(--s2) var(--s2) 0; }
+  .compare > div + div { border-left:1px solid var(--line); padding-left:var(--s2); }
+  .compare b { display:block; font:700 22px var(--serif); }
+  details summary { cursor:pointer; color:var(--muted); font-size:14px; margin-top:var(--s3); }
+  .scroll { overflow-x:auto; margin-top:var(--s2); }
+  table { width:100%; border-collapse:collapse; font-size:13px; min-width:560px; }
+  th,td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:500; }
   td.num { text-align:right; font-family:var(--mono); white-space:nowrap; }
-  .mark-ok { color:var(--ok); } .mark-bad { color:var(--bad); }
 
-  /* ---------- сравнение ---------- */
-  .compare { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
-  .compare > div { padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
-  .compare b { display:block; }
-
-  /* ---------- навигация ---------- */
-  .brand { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-  nav { display:flex; gap:4px; flex-wrap:wrap; }
-  nav a { color:var(--muted); text-decoration:none; font-size:14px; padding:6px 12px;
-          border-radius:8px; }
-  nav a:hover { color:var(--ink); background:var(--panel); }
-  nav a[aria-current="page"] { color:var(--ink); background:var(--panel);
-                               box-shadow:inset 0 0 0 1px var(--line); font-weight:600; }
-  .usage { margin:10px 0 0; }
-  .usage a, .note a { color:var(--accent); }
-  .note { font-size:13px; color:var(--muted); padding:10px 12px; border-radius:8px;
-          border:1px dashed var(--line); margin:0 0 14px; }
+  /* ---------- тренировка ---------- */
+  .quiz-msg { font:400 24px/1.6 var(--serif); padding:var(--s3) 0; margin:0;
+              border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+              white-space:pre-wrap; word-break:break-word; }
+  .quiz-answers { display:grid; grid-template-columns:repeat(3, 1fr); gap:var(--s2); margin-top:var(--s3); }
+  .quiz-answers .btn { padding:18px; }
+  .quiz-answers .btn[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  .quiz-score { font:700 clamp(48px, 9vw, 80px)/1 var(--serif); letter-spacing:-.03em; margin:0; }
+  .match { font:700 24px var(--serif); margin:var(--s3) 0 var(--s1); }
 
   /* ---------- тарифы ---------- */
-  .plans { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:14px; }
-  .plan { display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line);
-          border-radius:var(--radius); padding:18px 16px; }
-  .plan.best { border:2px solid var(--accent); }
-  .plan .tag { align-self:flex-start; font-size:11px; font-weight:700; text-transform:uppercase;
-               letter-spacing:.05em; color:var(--accent-ink); background:var(--accent);
-               padding:2px 8px; border-radius:999px; margin-bottom:8px; }
-  .plan h3 { margin:0; font-size:18px; }
-  .plan .for { color:var(--muted); font-size:13px; margin:2px 0 12px; }
-  .plan .price { font-size:28px; font-weight:700; line-height:1.1; }
-  .plan .price small { font-size:14px; font-weight:400; color:var(--muted); }
-  .plan ul { list-style:none; padding:0; margin:14px 0 18px; flex:1; font-size:14px; }
-  .plan li { padding:4px 0 4px 22px; position:relative; }
-  .plan li::before { content:"✓"; position:absolute; left:0; color:var(--ok); font-weight:700; }
-  .plan button, .plan .btn { width:100%; }
-  .btn { display:inline-block; text-align:center; text-decoration:none; font-size:15px; padding:9px 16px;
-         border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); }
-  .plan button.current { border-color:var(--ok); color:var(--ok); }
-  .faq dt { font-weight:600; margin-top:10px; }
-  .faq dd { margin:2px 0 0; color:var(--muted); font-size:14px; }
+  .plans { display:grid; grid-template-columns:repeat(3, 1fr); border-top:1px solid var(--line); }
+  .plan { display:flex; flex-direction:column; padding:var(--s3) var(--s3) var(--s3) 0; }
+  .plan + .plan { border-left:1px solid var(--line); padding-left:var(--s3); }
+  .plan h3 { font:700 26px var(--serif); letter-spacing:-.02em; margin:0; }
+  .plan .for { color:var(--muted); font-size:15px; margin:4px 0 var(--s2); }
+  .plan .price { font:700 36px/1.1 var(--serif); }
+  .plan .price small { font:400 15px var(--sans); color:var(--muted); }
+  .plan ul { list-style:none; padding:0; margin:var(--s2) 0 var(--s3); flex:1; font-size:15px; }
+  .plan li { padding:6px 0; border-bottom:1px solid var(--line); }
+  .plan .btn { width:100%; }
+  .faq dt { font:700 20px var(--serif); margin-top:var(--s3); }
+  .faq dd { margin:var(--s1) 0 0; color:var(--muted); }
+  .note { font-size:14px; color:var(--muted); margin:var(--s2) 0 0; }
 
   /* ---------- кабинет ---------- */
-  .acc-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .acc-grid .panel { margin-bottom:0; }
-  .field { display:block; margin-top:8px; }
-  .field input { width:100%; font:inherit; padding:8px 10px; border-radius:8px; margin-top:4px;
-                 border:1px solid var(--line); background:var(--bg); color:var(--ink); }
-  .big { font-size:22px; font-weight:700; }
-  .bar { height:8px; border-radius:999px; background:var(--bg); border:1px solid var(--line);
-         overflow:hidden; margin:8px 0 4px; }
-  .bar span { display:block; height:100%; background:var(--accent); }
+  .acc-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--s4); }
+  .field { display:block; margin-top:var(--s2); font-size:14px; color:var(--muted); }
+  .field input { width:100%; font:inherit; font-size:17px; padding:10px 0; margin-top:4px; color:var(--ink);
+                 border:none; border-bottom:1px solid var(--line); background:transparent; border-radius:0; }
+  .big { font:700 32px var(--serif); letter-spacing:-.02em; }
+  .bar { height:2px; background:var(--line); margin:var(--s2) 0 var(--s1); }
+  .bar span { display:block; height:100%; background:var(--ink); }
   .bar.full span { background:var(--warn); }
-  .stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:10px; }
-  .stats div { padding:8px 10px; border-radius:8px; background:var(--bg); border:1px solid var(--line); }
-  .stats b { display:block; font-size:18px; }
+  .stats { display:grid; grid-template-columns:repeat(3, 1fr); border-top:1px solid var(--line);
+           border-bottom:1px solid var(--line); }
+  .stats div { padding:var(--s2) 0; }
+  .stats div + div { border-left:1px solid var(--line); padding-left:var(--s2); }
+  .stats b { display:block; font:700 32px var(--serif); }
   .history { list-style:none; padding:0; margin:0; }
-  .history li { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;
-                padding:10px 4px; border-bottom:1px solid var(--line); }
-  .history li:last-child { border-bottom:none; }
-  .history .txt { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
-  .history .when { color:var(--muted); font-size:12px; white-space:nowrap; }
-  .badge { font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; white-space:nowrap; }
-  .badge.trust { color:var(--ok); background:var(--ok-bg); }
-  .badge.doubt, .badge.abstain { color:var(--warn); background:var(--warn-bg); }
-  .badge.distrust { color:var(--bad); background:var(--bad-bg); }
+  .history li { display:grid; grid-template-columns:120px 1fr auto; gap:var(--s2); align-items:baseline;
+                padding:12px 0; border-bottom:1px solid var(--line); }
+  .history .txt { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .history .when, .history .v { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .history .v.distrust { color:var(--bad); } .history .v.trust { color:var(--ok); }
+  .history .v.doubt, .history .v.abstain { color:var(--warn); }
 
   /* ---------- узкий экран ---------- */
-  @media (max-width:600px) {
-    body { padding:14px 12px 40px; }
-    h1 { font-size:21px; }
-    .how, .compare, .plans, .acc-grid { grid-template-columns:1fr; }
-    .history li { grid-template-columns:auto 1fr; }
-    .history .when { grid-column:2; }
-    .verdict .title { font-size:18px; }
-    .row button.primary { flex:1 1 auto; }
+  @media (max-width:640px) {
+    main { padding:var(--s2) 16px var(--s3); }
+    header { margin-bottom:var(--s3); }
+    nav { gap:var(--s2); }
+    section { margin-bottom:var(--s3); }
+    .how li { grid-template-columns:1fr; gap:4px; }
+    .plans, .acc-grid, .quiz-answers, .compare { grid-template-columns:1fr; }
+    .plan, .plan + .plan { padding:var(--s3) 0; border-left:none; border-bottom:1px solid var(--line); }
+    .compare > div + div { border-left:none; padding-left:0; border-top:1px solid var(--line); }
+    .barriers li { grid-template-columns:24px 1fr; }
+    .barriers .what, .barriers .who { grid-column:2; }
+    .history li { grid-template-columns:1fr; gap:2px; }
+    .message { font-size:19px; }
+    .row .btn.primary { flex:1 1 100%; }
     .hint-kbd { display:none; }
   }
 </style>
@@ -234,163 +255,216 @@
 <body>
 <main>
   <header>
-    <div class="brand">
-      <h1>Второе мнение</h1>
-      <nav aria-label="Разделы">
-        <a href="#/">Проверка</a>
-        <a href="#/plans">Тарифы</a>
-        <a href="#/account">Кабинет</a>
-      </nav>
-    </div>
-    <span class="pill" id="backend" title="Какая модель отвечает"><span class="dot"></span>подключаюсь…</span>
+    <a class="brand" href="#/" aria-label="Второе мнение — на главную">
+      <svg id="logo" viewBox="0 0 120 120" aria-hidden="true">
+        <path d="M14 22h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10H40l-16 14V72h-10A10 10 0 0 1 4 62V32a10 10 0 0 1 10-10z"
+              fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M50 44h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10h-10v14L80 94H50a10 10 0 0 1-10-10V54a10 10 0 0 1 10-10z"
+              fill="#81D8D0" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M62 69l9 9 18-19" fill="none" stroke="#1d1b18" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Второе мнение</span>
+    </a>
+    <nav aria-label="Разделы">
+      <a href="#/">Проверка</a>
+      <a href="#/quiz">Тренировка</a>
+      <a href="#/plans">Тарифы</a>
+      <a href="#/account">Кабинет</a>
+    </nav>
+    <span class="status" id="backend" title="Какая модель отвечает">подключаюсь</span>
   </header>
 
   <!-- ===================== страница: проверка ===================== -->
   <div data-view="check">
-  <p class="sub" style="margin:0 0 16px">Вставьте подозрительное сообщение. Мы не угадываем «фейк или нет» —
-    показываем приёмы манипуляции цитатами из самого текста и даём одну проверку,
-    которая снимает сомнение быстрее всего.</p>
+    <h1>Покажем, где в&nbsp;сообщении обман</h1>
+    <p class="lead">Вставьте подозрительное сообщение или голосовое. Мы не гадаем «фейк или нет» —
+      отмечаем приёмы цитатами из самого текста и даём одну проверку, которая снимает сомнение.</p>
 
-  <!-- ввод -->
-  <section class="panel">
-    <label for="text" class="muted" style="display:block;margin-bottom:6px">Текст сообщения</label>
-    <textarea id="text" spellcheck="false"
-      placeholder="Например: Мам, привет, это я, телефон разбился, пишу с номера друга…"></textarea>
-    <div class="row">
-      <div class="grow"><select id="samples" aria-label="Пример сообщения">
-        <option value="">Взять пример сообщения…</option></select></div>
-      <button class="primary" id="go">Проверить</button>
-    </div>
-    <div class="row muted" style="justify-content:space-between">
-      <span class="hint-kbd"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> — проверить</span>
-      <button class="link" id="clear" type="button">Очистить</button>
-    </div>
-    <p class="usage muted" id="usage"></p>
-  </section>
-
-  <!-- пустое состояние -->
-  <section class="panel" id="idle">
-    <h2>Как это работает</h2>
-    <div class="how">
-      <div><span class="n">1</span><b>Находит приёмы</b>
-        <span>Срочность, просьба кода, «служба безопасности» — и каждый подтверждает дословной цитатой.</span></div>
-      <div><span class="n">2</span><b>Перепроверяет себя</b>
-        <span>Цитаты сверяются с текстом, второй взгляд ищет пропуски. Сомневается — честно говорит «не уверены».</span></div>
-      <div><span class="n">3</span><b>Даёт одну проверку</b>
-        <span>Конкретное действие на 30 секунд, которое отличит настоящее сообщение от обмана.</span></div>
-    </div>
-    <p class="muted" id="mock-note" hidden style="margin:12px 0 0">Сейчас работают офлайн-заглушки:
-      ответ есть только для примеров из списка. Для своего текста нужна настоящая модель.</p>
-  </section>
-
-  <!-- загрузка -->
-  <section class="panel" id="loading" hidden aria-live="polite">
-    <h2>Проверяю</h2>
-    <ul class="steps-live" id="steps-live"></ul>
-  </section>
-
-  <!-- ошибка -->
-  <section class="panel error" id="error" hidden role="alert">
-    <b id="error-title"></b>
-    <p id="error-body" style="margin:6px 0 0"></p>
-  </section>
-
-  <!-- результат -->
-  <div id="result" hidden>
-    <section class="panel verdict" id="verdict">
-      <div class="icon" id="verdict-icon"></div>
-      <div>
-        <div class="title" id="verdict-title"></div>
-        <div class="why" id="verdict-why"></div>
-        <div class="abstain-note muted" id="abstain-note" hidden>Это не сбой: система не нашла
-          достаточных оснований для вывода и вместо догадки предлагает проверку.</div>
+    <section>
+      <label for="text" class="label" style="display:block">Текст сообщения</label>
+      <textarea id="text" spellcheck="false"
+        placeholder="Мам, привет, это я, телефон разбился, пишу с номера друга…"></textarea>
+      <div class="row">
+        <div class="grow"><select id="samples" aria-label="Пример сообщения">
+          <option value="">Взять пример сообщения…</option></select></div>
+        <button class="btn primary" id="go">Проверить</button>
       </div>
+      <div class="voice" id="voice">
+        <span class="muted">Голосовое:</span>
+        <button type="button" class="btn" id="rec">Записать</button>
+        <label class="btn" for="audio-file" style="cursor:pointer">Загрузить файл</label>
+        <input type="file" id="audio-file" accept="audio/*" hidden>
+        <span class="muted small" id="rec-state"></span>
+      </div>
+      <div class="row muted small" style="justify-content:space-between">
+        <span class="hint-kbd"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> — проверить</span>
+        <button class="link" id="clear" type="button">Очистить</button>
+      </div>
+      <p class="usage" id="usage"></p>
     </section>
 
-    <section class="panel check" id="check" hidden>
-      <h2>Что сделать прямо сейчас</h2>
-      <div class="act" id="check-act"></div>
-      <div class="why" id="check-why"></div>
-      <div class="time"><span class="pill" id="check-time"></span></div>
+    <!-- пустое состояние -->
+    <section id="idle">
+      <p class="label">Как это работает</p>
+      <ul class="how">
+        <li><b>Находит приёмы</b>
+          <span>Срочность, просьба кода, «служба безопасности» — каждый подтверждён дословной цитатой.</span></li>
+        <li><b>Перепроверяет себя</b>
+          <span>Цитаты сверяются с текстом кодом, второй взгляд ищет пропуски. Не уверены — так и скажем.</span></li>
+        <li><b>Даёт одну проверку</b>
+          <span>Конкретное действие на полминуты, которое отличит настоящее сообщение от обмана.</span></li>
+      </ul>
+      <p class="note" id="mock-note" hidden>Сейчас модели работают на офлайн-заглушках: примеры из списка
+        разбираются полностью, свой текст — по признакам, которые видит код, без модели.</p>
     </section>
 
-    <section class="panel">
-      <h2>Где это написано</h2>
-      <div class="message" id="message"></div>
-      <ul class="markers" id="markers"></ul>
-      <p class="none" id="no-markers" hidden>Приёмов манипуляции не найдено.</p>
+    <!-- загрузка -->
+    <section id="loading" hidden aria-live="polite">
+      <p class="label">Проверяю</p>
+      <ul class="steps-live" id="steps-live"></ul>
     </section>
 
-    <section class="panel">
-      <h2>Как система к этому пришла</h2>
-      <ul class="pipeline" id="pipeline"></ul>
-      <p class="totals" id="totals"></p>
-      <button type="button" id="compare-btn">Сравнить с одной моделью без проверок</button>
-      <div class="compare" id="compare" hidden></div>
-      <details>
-        <summary>Полная трассировка</summary>
-        <div class="scroll"><table>
-          <thead><tr><th>узел</th><th>модель</th><th></th><th class="num">цена</th>
-                     <th class="num">мс</th><th>подробности</th></tr></thead>
-          <tbody id="trace"></tbody>
-        </table></div>
-      </details>
+    <!-- ошибка -->
+    <section class="error" id="error" hidden role="alert">
+      <b id="error-title"></b>
+      <p id="error-body" style="margin:var(--s1) 0 0"></p>
     </section>
+
+    <!-- результат -->
+    <div id="result" hidden>
+      <section class="verdict" id="verdict">
+        <p class="label">Вывод</p>
+        <p class="word" id="verdict-word"></p>
+        <p class="why" id="verdict-why"></p>
+        <p class="seen muted" id="seen" hidden></p>
+      </section>
+
+      <section>
+        <p class="label">Где это написано</p>
+        <p class="heard" id="heard" hidden></p>
+        <div class="message" id="message"></div>
+        <ul class="markers" id="markers"></ul>
+        <p class="none" id="no-markers" hidden></p>
+      </section>
+
+      <section class="check" id="check" hidden>
+        <p class="label">Сделайте одно</p>
+        <p class="act" id="check-act"></p>
+        <p class="why" id="check-why"></p>
+        <p class="time" id="check-time"></p>
+        <div class="after">
+          <p class="label" style="margin-bottom:var(--s1)">Что получилось?</p>
+          <div class="choices" id="choices">
+            <button type="button" class="btn" data-o="confirmed">Подтвердилось — всё правда</button>
+            <button type="button" class="btn" data-o="unreachable">Не получилось проверить</button>
+            <button type="button" class="btn" data-o="fake">Оказалось, это обман</button>
+          </div>
+          <div id="outcome" hidden></div>
+        </div>
+      </section>
+
+      <section>
+        <p class="label">Как система к этому пришла</p>
+        <p class="passed" id="passed"></p>
+        <ul class="barriers" id="barriers"></ul>
+        <p class="totals" id="totals"></p>
+        <button type="button" class="btn" id="compare-btn" style="margin-top:var(--s2)">Сравнить с одной моделью без проверок</button>
+        <div class="compare" id="compare" hidden></div>
+        <details>
+          <summary>Полная трассировка</summary>
+          <div class="scroll"><table>
+            <thead><tr><th>узел</th><th>модель</th><th></th><th class="num">цена</th>
+                       <th class="num">мс</th><th>подробности</th></tr></thead>
+            <tbody id="trace"></tbody>
+          </table></div>
+        </details>
+      </section>
+    </div>
   </div>
+
+  <!-- ===================== страница: тренировка ===================== -->
+  <div data-view="quiz" hidden>
+    <h1>Распознаете обман?</h1>
+    <p class="lead">Десять сообщений из нашего набора. Решите сами, потом посмотрите, что нашла
+      система, — с цитатами. Так приёмы запоминаются лучше любой памятки.</p>
+    <div id="quiz-play">
+      <p class="label" id="quiz-progress"></p>
+      <p class="quiz-msg" id="quiz-msg"></p>
+      <div class="quiz-answers" id="quiz-answers">
+        <button type="button" class="btn" data-a="trust">Доверять</button>
+        <button type="button" class="btn" data-a="doubt">Сомневаться</button>
+        <button type="button" class="btn" data-a="distrust">Не доверять</button>
+      </div>
+      <div id="quiz-reveal" hidden>
+        <p class="match" id="quiz-match"></p>
+        <div class="message" id="quiz-marked" style="border-top:none"></div>
+        <ul class="markers" id="quiz-markers"></ul>
+        <p class="note" id="quiz-check"></p>
+        <div class="row"><button type="button" class="btn primary" id="quiz-next">Дальше</button></div>
+      </div>
+    </div>
+    <div id="quiz-done" hidden>
+      <p class="label">Итог</p>
+      <p class="quiz-score" id="quiz-score"></p>
+      <p class="lead" id="quiz-score-why" style="margin-bottom:var(--s3)"></p>
+      <button type="button" class="btn primary" id="quiz-again">Ещё раз</button>
+    </div>
+    <p class="note">Сравниваем с разбором системы, а не с эталонной разметкой: её сервер пока не отдаёт.</p>
   </div>
 
   <!-- ===================== страница: тарифы ===================== -->
   <div data-view="plans" hidden>
-    <p class="sub" style="margin:0 0 16px">Базовая проверка бесплатна всегда: человеку, которому
-      прямо сейчас пишут мошенники, нельзя показывать стену оплаты.</p>
+    <h1>Тарифы</h1>
+    <p class="lead">Базовая проверка бесплатна всегда: человеку, которому прямо сейчас пишут
+      мошенники, нельзя показывать стену оплаты.</p>
     <div class="plans" id="plans"></div>
     <p class="note">Демо-режим: оплата не подключена, тариф переключается сразу и хранится
-      только в этом браузере. Цены — черновик команды.</p>
-    <section class="panel">
-      <h2>Частые вопросы</h2>
-      <dl class="faq">
-        <dt>Что будет, если бесплатные проверки закончились?</dt>
-        <dd>Проверка всё равно выполнится — мы только напомним о тарифе. Отказать в помощи
-          в момент обмана хуже, чем недополучить оплату.</dd>
-        <dt>Видите ли вы мои сообщения?</dt>
-        <dd>Текст проверки сохраняется на нашем сервере — чтобы сказать «это сообщение
-          уже присылали другим» и учиться на настоящих примерах. Не вставляйте в проверку
-          пароли и коды из СМС: для разбора они не нужны. История в кабинете хранится
-          у вас в браузере.</dd>
-        <dt>Чем «Для организаций» отличается от остальных?</dt>
-        <dd>Тот же разбор, но через API: банк или оператор встраивает проверку в своё приложение
-          и получает ответ вместе с полной трассировкой.</dd>
-      </dl>
-    </section>
+      только в этом браузере.</p>
+    <hr class="rule">
+    <p class="label">Частые вопросы</p>
+    <dl class="faq">
+      <dt>Что будет, если бесплатные проверки закончились?</dt>
+      <dd>Проверка всё равно выполнится — мы только напомним о тарифе. Отказать в помощи
+        в момент обмана хуже, чем недополучить оплату.</dd>
+      <dt>Видите ли вы мои сообщения?</dt>
+      <dd>Текст проверки сохраняется на нашем сервере — чтобы сказать «это сообщение
+        уже присылали другим» и учиться на настоящих примерах. Не вставляйте в проверку
+        пароли и коды из СМС: для разбора они не нужны. Голосовое распознаётся на нашем
+        сервере, сама запись не сохраняется. История в кабинете хранится у вас в браузере.</dd>
+      <dt>Чем «Для организаций» отличается от остальных?</dt>
+      <dd>Тот же разбор, но через API: банк или оператор встраивает проверку в своё приложение
+        и получает ответ вместе с полной трассировкой.</dd>
+    </dl>
   </div>
 
   <!-- ===================== страница: кабинет ===================== -->
   <div data-view="account" hidden>
-    <p class="note">Демо-кабинет: вход и оплата появятся вместе с сервером. Сейчас профиль,
-      тариф и история хранятся только в этом браузере.</p>
+    <h1>Кабинет</h1>
+    <p class="lead">Демо: вход и оплата появятся вместе с сервером. Сейчас профиль, тариф и
+      история хранятся только в этом браузере.</p>
     <div class="acc-grid">
-      <section class="panel">
-        <h2>Профиль</h2>
-        <label class="field muted">Как к вам обращаться
+      <section>
+        <p class="label">Профиль</p>
+        <label class="field">Как к вам обращаться
           <input id="acc-name" autocomplete="off" placeholder="Например, Анна"></label>
-        <label class="field muted">Кому сообщить, если пришло подозрительное
+        <label class="field">Кому сообщить, если пришло подозрительное
           <input id="acc-trusted" autocomplete="off" placeholder="Имя близкого человека"></label>
-        <p class="muted" id="acc-saved" style="margin:8px 0 0" hidden>Сохранено</p>
+        <p class="note" id="acc-saved" hidden>Сохранено</p>
       </section>
-      <section class="panel">
-        <h2>Тариф</h2>
+      <section>
+        <p class="label">Тариф</p>
         <div class="big" id="acc-plan"></div>
         <div class="muted" id="acc-plan-for"></div>
         <div class="bar" id="acc-bar"><span></span></div>
-        <div class="muted" id="acc-usage"></div>
-        <div class="row"><button type="button" id="acc-change">Сменить тариф</button></div>
+        <div class="muted small" id="acc-usage"></div>
+        <div class="row"><button type="button" class="btn" id="acc-change">Сменить тариф</button></div>
       </section>
     </div>
-    <section class="panel" style="margin-top:14px">
-      <h2>Ваши проверки</h2>
+    <section style="margin-top:var(--s4)">
+      <p class="label">Ваши проверки</p>
       <div class="stats" id="acc-stats"></div>
-      <ul class="history" id="acc-history" style="margin-top:10px"></ul>
-      <p class="muted" id="acc-empty">Пока пусто. <a href="#/" style="color:var(--accent)">Проверьте первое сообщение</a> —
+      <ul class="history" id="acc-history"></ul>
+      <p class="muted" id="acc-empty">Пока пусто. <a href="#/">Проверьте первое сообщение</a> —
         оно появится здесь.</p>
       <div class="row" style="justify-content:flex-end">
         <button class="link" id="acc-clear" type="button">Очистить историю</button>
@@ -405,65 +479,81 @@
 //    добавляется здесь, остальной код трогать не нужно.
 // ===================================================================
 const VERDICT = {
-  trust:    { word: "Похоже на настоящее", icon: "✓", cls: "v-trust" },
-  doubt:    { word: "Есть сомнения",       icon: "!", cls: "v-doubt" },
-  distrust: { word: "Похоже на обман",     icon: "✕", cls: "v-distrust" },
-  abstain:  { word: "Не уверены — проверьте", icon: "?", cls: "v-doubt" },
+  trust:    { word: "Похоже на настоящее", cls: "w-trust" },
+  doubt:    { word: "Есть сомнения",       cls: "w-doubt" },
+  distrust: { word: "Похоже на обман",     cls: "w-distrust" },
+  abstain:  { word: "Не уверены — проверьте", cls: "w-doubt" },
 };
+const verdictOf = (b) => !b.answered ? VERDICT.abstain
+  : (VERDICT[(b.product || {}).assessment] || VERDICT.doubt);
 
 const MARKER = {
-  money_request:      "просьба о деньгах",
-  urgency:            "давление срочностью",
-  new_contact:        "пишет с нового номера или аккаунта",
-  authority:          "представляется организацией или начальством",
-  secrecy:            "просит никому не говорить",
-  code_request:       "просит код, пароль или данные карты",
-  external_link:      "ссылка на оплату или вход",
-  prepayment:         "требует предоплату",
-  too_good:           "слишком выгодное предложение",
-  unverifiable_proof: "доказательство, которое нельзя проверить",
-  remote_access:      "просит доступ к устройству",
+  money_request:      "Просьба о деньгах",
+  urgency:            "Давление срочностью",
+  new_contact:        "Пишет с нового номера или аккаунта",
+  authority:          "Представляется организацией или начальством",
+  secrecy:            "Просит никому не говорить",
+  code_request:       "Просит код, пароль или данные карты",
+  external_link:      "Ссылка на оплату или вход",
+  prepayment:         "Требует предоплату",
+  too_good:           "Слишком выгодное предложение",
+  unverifiable_proof: "Доказательство, которое нельзя проверить",
+  remote_access:      "Просит доступ к устройству",
 };
 
-// Узлы конвейера из trace.steps → человеческое название барьера.
+// Узлы конвейера из trace.steps → название и что делает. code — шаг без модели.
 const NODE = {
-  route:  "выбор модели",
-  solve:  "разбор",
-  ground: "сверка цитат",
-  signals: "признаки без модели",
-  verify: "второй взгляд",
-  recall: "полнота",
-  gate:   "порог уверенности",
-  abstain: "отказ от вывода",
+  route:   { name: "Выбор модели",        what: "хватит ли дешёвой модели или нужна сильная" },
+  signals: { name: "Признаки без модели", what: "код ищет карты, ссылки, просьбы кода" },
+  solve:   { name: "Разбор",              what: "модель находит приёмы и выписывает цитаты" },
+  ground:  { name: "Сверка цитат",        what: "код проверяет, что каждая цитата есть в тексте" },
+  verify:  { name: "Второй взгляд",       what: "отдельная модель ищет пропуски" },
+  recall:  { name: "Полнота",             what: "всё ли найденное попало в ответ" },
+  gate:    { name: "Порог уверенности",   what: "ниже порога вывод не выдаётся" },
+  abstain: { name: "Отказ от вывода",     what: "вместо догадки — проверка для человека" },
 };
 // Что показываем во время ожидания (сервер отвечает одним куском).
-const LIVE_STEPS = ["route", "solve", "ground", "verify", "gate"];
+const LIVE_STEPS = ["route", "solve", "ground", "signals", "verify", "gate"];
+
+// Что делать после проверки — одинаково для всех сообщений: это поведение,
+// а не разбор текста, и оно работает, даже когда модель отказалась.
+const OUTCOME = {
+  confirmed:   { title: "Хорошо, что проверили",
+                 steps: ["Можно отвечать как обычно.", "Попросят перевести ещё — проверьте снова."] },
+  unreachable: { title: "Пока не переводите и ничего не сообщайте",
+                 steps: ["Настоящий человек подождёт, мошенник — будет торопить.",
+                         "Попробуйте ещё раз через 10 минут или спросите общих знакомых."] },
+  fake:        { title: "Это мошенники. Что сделать сейчас",
+                 steps: ["Не отвечайте и заблокируйте отправителя.",
+                         "Если назвали код или данные карты — позвоните в банк по номеру на обороте карты.",
+                         "Предупредите близких."] },
+};
 
 // Группы примеров по префиксу id в evals/cases_authenticity.jsonl.
-const SAMPLE_GROUPS = { s: "Схемы мошенников", l: "Обычные сообщения", b: "Спорные случаи" };
+const SAMPLE_GROUPS = { s: "Схемы мошенников", l: "Обычные сообщения", b: "Спорные случаи", r: "Настоящие сообщения" };
 
 // ===================================================================
-// 2. Клиент API: /healthz, /samples, /run. Формат — api/server.py.
+// 2. Клиент API: /healthz, /samples, /run, /run-audio. Формат — api/server.py.
 // ===================================================================
+async function asJson(res) {
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(body.detail || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
+  return body;
+}
 const api = {
-  async get(path) {
-    const res = await fetch(path);
-    if (!res.ok) throw new Error(res.statusText);
-    return res.json();
-  },
-  async run(text, arm = "cascade") {
-    const res = await fetch("/run", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text, arm }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(body.detail || res.statusText);
-      err.status = res.status;
-      throw err;
-    }
-    return body;
+  get: (path) => fetch(path).then(asJson),
+  run: (text, arm = "cascade") => fetch("/run", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, arm }),
+  }).then(asJson),
+  runAudio(blob, name) {
+    const form = new FormData();
+    form.append("file", blob, name);
+    return fetch("/run-audio", { method: "POST", body: form }).then(asJson);
   },
 };
 
@@ -471,16 +561,22 @@ const api = {
 // 3. Состояния экрана: idle | loading | error | result
 // ===================================================================
 const $ = (id) => document.getElementById(id);
-const state = { backend: null, lastText: "", lastResult: null };
+const state = { backend: null, lastText: "", lastResult: null, samples: [] };
 
 function show(view) {
   for (const id of ["idle", "loading", "error", "result"]) $(id).hidden = id !== view;
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]
-  ));
+  return String(s ?? "").replace(/[&<>"']/g, (c) => (
+    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
 }
 
 function humanTime(sec) {
@@ -489,10 +585,11 @@ function humanTime(sec) {
 }
 
 let liveTimer = null;
-function startLoading() {
+function startLoading(first) {
   show("loading");
-  const items = LIVE_STEPS.map((n) => `<li data-n="${n}">${NODE[n]}</li>`).join("");
-  $("steps-live").innerHTML = items;
+  const steps = first ? [first, ...LIVE_STEPS] : LIVE_STEPS;
+  $("steps-live").innerHTML = steps.map((n) =>
+    `<li>${escapeHtml(NODE[n] ? NODE[n].name : n)}</li>`).join("");
   const lis = [...$("steps-live").children];
   let i = 0;
   lis[0].className = "on";
@@ -510,63 +607,63 @@ function showError(title, html) {
 
 // Ошибки переводим в то, что человек может сделать.
 function explainError(err) {
-  if (err.status === 422 && /no fixture/i.test(err.message)) {
-    return ["Для этого текста нет ответа на заглушках",
-      "Сервер работает на офлайн-заглушках (<code>LLM_BACKEND=mock</code>), они знают только " +
-      "примеры из списка. Выберите пример — или подключите модель: " +
-      "<code>LLM_BACKEND=anthropic</code> с ключом в <code>.env</code>."];
+  if (err.status === 503) {
+    return ["Голосовые здесь не распознаются",
+      "Распознавание речи работает на сервере с Apple Silicon. Вставьте текст сообщения " +
+      "или запустите сервер на ноутбуке, где стоит <code>mlx-whisper</code>."];
   }
+  if (err.status === 413) return ["Запись слишком длинная", "Пришлите файл до 25 МБ — обычно это до получаса речи."];
   if (err.status === 422) return ["Не получилось проверить", escapeHtml(err.message)];
   if (err instanceof TypeError) {
-    return ["Сервер не отвечает",
-      "Запущен ли он? <code>uvicorn api.server:app --port 8000</code>"];
+    return ["Сервер не отвечает", "Запущен ли он? <code>uvicorn api.server:app --port 8000</code>"];
   }
   return ["Что-то пошло не так", escapeHtml(err.message || "неизвестная ошибка")];
 }
 
 // ===================================================================
-// 4. Отрисовка результата — по функции на карточку.
+// 4. Отрисовка результата — по функции на блок.
 // ===================================================================
 function render(body, original) {
   show("result");
-  const product = body.product || {};
   const data = body.data || {};
   const markers = data.markers || [];
-  renderVerdict(body, product, data, markers);
-  renderCheck(product.check);
-  renderMessage(original, markers, body.answered);
-  renderPipeline(body.trace || { steps: [] });
+  renderVerdict(body, data, markers);
+  renderMessage(original, markers, body.answered, $("message"), $("markers"), $("no-markers"));
+  renderCheck((body.product || {}).check);
+  renderBarriers(body.trace || { steps: [] }, body.status === "mechanical");
+  $("heard").hidden = !body.heard;
+  if (body.heard) {
+    $("heard").textContent = `Распознано из голосового (${body.heard.seconds} с, ${body.heard.model}):`;
+  }
   $("compare").hidden = true;
   $("compare-btn").hidden = false;
   $("verdict").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function renderVerdict(body, product, data, markers) {
-  const v = !body.answered ? VERDICT.abstain : (VERDICT[product.assessment] || VERDICT.doubt);
-  $("verdict").className = "panel verdict " + v.cls;
-  $("verdict-icon").textContent = v.icon;
-  $("verdict-title").textContent = v.word;
-  // На заглушках explanation — служебная строка из фикстуры, не текст для людей.
-  const why = state.backend === "mock" && body.status !== "mechanical" ? "" : (data.explanation || "");
-  const count = markers.length ? `Найдено приёмов: ${markers.length}.` : "";
-  $("verdict-why").textContent = [why, count].filter(Boolean).join(" ");
-  $("abstain-note").hidden = !!body.answered;
-}
-
-function renderCheck(check) {
-  // C00 — «проверка не нужна», карточку не показываем.
-  $("check").hidden = !check || check.id === "C00";
-  if ($("check").hidden) return;
-  $("check-act").textContent = check.action;
-  $("check-why").textContent = check.why || "";
-  $("check-time").textContent = humanTime(check.time_sec);
-  $("check-time").hidden = !check.time_sec;
+function renderVerdict(body, data, markers) {
+  const v = verdictOf(body);
+  $("verdict-word").className = "word " + v.cls;
+  $("verdict-word").textContent = v.word;
+  // На заглушках explanation у примеров — служебная строка фикстуры, не текст для людей.
+  // Механический ответ подписываем по-человечески: в explanation там служебные имена детекторов.
+  const why = body.status === "mechanical"
+    ? "Разобрано без модели — по признакам, которые видит код: бесплатно и мгновенно."
+    : state.backend === "mock" ? "" : (data.explanation || "");
+  const count = markers.length
+    ? `Найдено ${markers.length} ${plural(markers.length, "приём", "приёма", "приёмов")} — каждый с цитатой ниже.` : "";
+  const abstain = body.answered ? ""
+    : "Это не сбой: система не нашла достаточных оснований для вывода и вместо догадки даёт проверку.";
+  $("verdict-why").textContent = [why, count, abstain].filter(Boolean).join(" ");
+  // seen_before — из хранилища проверок на сервере.
+  const seen = body.seen_before || 0;
+  $("seen").hidden = seen < 1;
+  $("seen").innerHTML = `Это сообщение уже проверяли <b>${seen} ${plural(seen, "раз", "раза", "раз")}</b> — вам прислали его не первому.`;
 }
 
 // Подсветка цитат прямо в сообщении — главное, что показывает экран: система
 // не «чувствует» обман, а указывает, где он написан. Цитаты дословные (это
 // гарантирует механическая проверка на сервере), поэтому ищем подстрокой.
-function renderMessage(text, markers, answered) {
+function renderMessage(text, markers, answered, msgEl, listEl, noneEl) {
   const spans = [];
   markers.forEach((m, i) => {
     if (!m.quote) return;
@@ -574,7 +671,6 @@ function renderMessage(text, markers, answered) {
     if (at >= 0) spans.push({ start: at, end: at + m.quote.length, n: i + 1 });
   });
   spans.sort((a, b) => a.start - b.start);
-
   let html = "", cursor = 0;
   for (const s of spans) {
     if (s.start < cursor) continue;            // пересечения пропускаем
@@ -582,44 +678,66 @@ function renderMessage(text, markers, answered) {
     html += `<mark data-n="${s.n}">${escapeHtml(text.slice(s.start, s.end))}<sup>${s.n}</sup></mark>`;
     cursor = s.end;
   }
-  $("message").innerHTML = html + escapeHtml(text.slice(cursor));
-
-  $("markers").innerHTML = markers.map((m, i) => `
-    <li data-n="${i + 1}"><span class="n">${i + 1}</span>
+  msgEl.innerHTML = html + escapeHtml(text.slice(cursor));
+  listEl.innerHTML = markers.map((m, i) => `
+    <li data-n="${i + 1}"><span class="n">${String(i + 1).padStart(2, "0")}</span>
       <span class="mtype">${escapeHtml(MARKER[m.type] || m.type)}</span>
       <span class="mquote">«${escapeHtml(m.quote || "")}»</span></li>`).join("");
-  // При отказе разбора нет вовсе — «приёмов не найдено» было бы неправдой.
-  $("no-markers").textContent = answered ? "Приёмов манипуляции не найдено."
-    : "Разбор не прошёл проверку, поэтому приёмы не выделяем — только проверка выше.";
-  $("no-markers").hidden = markers.length > 0;
+  if (noneEl) {
+    // При отказе разбора нет вовсе — «приёмов не найдено» было бы неправдой.
+    noneEl.textContent = answered
+      ? "Приёмов манипуляции не найдено. Это не доказательство, что всё в порядке, — но и тревожных признаков нет."
+      : "Разбор не прошёл нашу же проверку, поэтому приёмы не выделяем — только проверка ниже.";
+    noneEl.hidden = markers.length > 0;
+  }
 }
 
 // Наведение на приём в списке подсвечивает цитату в тексте и наоборот.
-function linkHover(container) {
+function linkHover(msgEl, listEl) {
   const toggle = (e, on) => {
     const el = e.target.closest("[data-n]");
     if (!el) return;
-    document.querySelectorAll(`#message [data-n="${el.dataset.n}"], #markers [data-n="${el.dataset.n}"]`)
-      .forEach((x) => x.classList.toggle("hot", on));
+    for (const root of [msgEl, listEl]) {
+      root.querySelectorAll(`[data-n="${el.dataset.n}"]`).forEach((x) => x.classList.toggle("hot", on));
+    }
   };
-  container.addEventListener("mouseover", (e) => toggle(e, true));
-  container.addEventListener("mouseout", (e) => toggle(e, false));
+  for (const root of [msgEl, listEl]) {
+    root.addEventListener("mouseover", (e) => toggle(e, true));
+    root.addEventListener("mouseout", (e) => toggle(e, false));
+  }
 }
 
-function renderPipeline(t) {
-  // Короткая лента барьеров видна всегда — по ней оценивают оркестрацию.
-  $("pipeline").innerHTML = t.steps.map((s) => `
-    <li class="${s.ok ? "ok" : "fail"}" title="${escapeHtml(s.detail || "")}">
-      <b>${s.ok ? "✓" : "✕"}</b>${escapeHtml(NODE[s.node] || s.node)}
-      ${s.model ? `<span class="muted">· ${escapeHtml(s.model)}</span>` : ""}</li>`).join("");
+function renderCheck(check) {
+  // C00 — «проверка не нужна», блок не показываем.
+  $("check").hidden = !check || check.id === "C00";
+  if ($("check").hidden) return;
+  $("check-act").textContent = check.action;
+  $("check-why").textContent = check.why || "";
+  $("check-time").textContent = humanTime(check.time_sec);
+  $("check-time").hidden = !check.time_sec;
+  $("outcome").hidden = true;
+  $("choices").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false"));
+}
 
-  $("totals").textContent = `шагов: ${t.steps.length} · $${(t.cost_usd || 0).toFixed(5)}`
-    + ` · ${(t.model_latency_ms || 0).toFixed(0)} мс в моделях`
-    + ` · модели: ${(t.models_used || []).join(", ") || "нет"}`;
-
+// Барьеры — списком, как отчёт VirusTotal по движкам: видно, кто что сказал.
+function renderBarriers(t, mechanical) {
+  const ok = t.steps.filter((s) => s.ok).length;
+  $("passed").textContent = mechanical ? "Ответ без единой модели"
+    : t.steps.length
+    ? `${ok} из ${t.steps.length} ${plural(t.steps.length, "проверки", "проверок", "проверок")} пройдено`
+    : "";
+  $("barriers").innerHTML = t.steps.map((s) => {
+    const n = NODE[s.node] || { name: s.node, what: "" };
+    return `<li title="${escapeHtml(s.detail || "")}">
+      <span class="${s.ok ? "mark-ok" : "mark-bad"}">${s.ok ? "✓" : "✕"}</span>
+      <span>${escapeHtml(n.name)}</span>
+      <span class="what">${escapeHtml(n.what)}</span>
+      <span class="who">${escapeHtml(s.model || "код")}</span></li>`;
+  }).join("");
+  $("totals").textContent = `$${(t.cost_usd || 0).toFixed(5)} · ${(t.model_latency_ms || 0).toFixed(0)} мс в моделях`
+    + ` · модели: ${(t.models_used || []).join(", ") || "не понадобились"}`;
   $("trace").innerHTML = t.steps.map((s) => [
-    escapeHtml(s.node), escapeHtml(s.model || "—"),
-    `<span class="${s.ok ? "mark-ok" : "mark-bad"}">${s.ok ? "✓" : "✕"}</span>`,
+    escapeHtml(s.node), escapeHtml(s.model || "—"), s.ok ? "✓" : "✕",
     s.cost_usd ? `$${s.cost_usd.toFixed(5)}` : "—",
     s.latency_ms ? s.latency_ms.toFixed(0) : "—",
     escapeHtml(s.detail || ""),
@@ -628,21 +746,18 @@ function renderPipeline(t) {
 }
 
 // Сравнение: тот же текст одной моделью без барьеров (arm=baseline).
-// Показывает, зачем нужны проверки, — на спорных примерах она ошибается уверенно.
 async function compare() {
   const btn = $("compare-btn");
   btn.disabled = true; btn.textContent = "Сравниваю…";
-  const word = (b) => !b.answered ? VERDICT.abstain.word
-    : (VERDICT[(b.product || {}).assessment] || VERDICT.doubt).word;
   const cost = (b) => `$${((b.trace || {}).cost_usd || 0).toFixed(5)}`;
   try {
     const ours = state.lastResult;
     const base = await api.run(state.lastText, "baseline");
     $("compare").innerHTML = `
-      <div><span class="muted">С проверками</span><b>${escapeHtml(word(ours))}</b>
-        <span class="muted">${cost(ours)}</span></div>
-      <div><span class="muted">Одна модель, без проверок</span><b>${escapeHtml(word(base))}</b>
-        <span class="muted">${cost(base)}</span></div>`;
+      <div><span class="label">С проверками</span><b>${escapeHtml(verdictOf(ours).word)}</b>
+        <span class="muted small">${cost(ours)}</span></div>
+      <div><span class="label">Одна модель, без проверок</span><b>${escapeHtml(verdictOf(base).word)}</b>
+        <span class="muted small">${cost(base)}</span></div>`;
     $("compare").hidden = false;
     btn.hidden = true;
   } catch (err) {
@@ -654,9 +769,133 @@ async function compare() {
 }
 
 // ===================================================================
-// 5. Тарифы и кабинет. Сервера для аккаунтов нет, поэтому всё — демо в
+// 5. Голосовые: запись с микрофона или файл → /run-audio. Сервер сам
+//    распознаёт речь и дальше идёт тем же путём, что текст.
+// ===================================================================
+let recorder = null, chunks = [];
+
+async function toggleRecording() {
+  if (recorder && recorder.state === "recording") { recorder.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) {
+    $("rec-state").textContent = "Запись в этом браузере недоступна — загрузите файл.";
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recorder = new MediaRecorder(stream);
+    chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      $("rec").textContent = "Записать";
+      $("rec-state").textContent = "";
+      const type = recorder.mimeType || "audio/webm";
+      const ext = type.includes("ogg") ? ".ogg" : type.includes("mp4") ? ".m4a" : ".webm";
+      checkAudio(new Blob(chunks, { type }), "запись" + ext);
+    };
+    recorder.start();
+    $("rec").textContent = "Остановить";
+    $("rec-state").innerHTML = '<span class="rec-dot"></span>Идёт запись — включите голосовое рядом с телефоном';
+  } catch {
+    $("rec-state").textContent = "Нет доступа к микрофону — разрешите его в браузере или загрузите файл.";
+  }
+}
+
+async function checkAudio(blob, name) {
+  startLoading("распознавание речи");
+  try {
+    const body = await api.runAudio(blob, name);
+    const text = (body.heard && body.heard.text) || "";
+    $("text").value = text;
+    state.lastText = text;
+    state.lastResult = body;
+    render(body, text);
+    record(body, text);
+  } catch (err) {
+    showError(...explainError(err));
+  } finally {
+    stopLoading();
+  }
+}
+NODE["распознавание речи"] = { name: "Распознавание речи", what: "" };
+
+// ===================================================================
+// 6. Тренировка: 10 случайных примеров из /samples. Ответ человека
+//    сравниваем с разбором системы — эталонной разметки сервер не отдаёт.
+// ===================================================================
+const QUIZ_LEN = 10;
+const quiz = { items: [], i: 0, matched: 0, cache: new Map() };
+
+function quizStart() {
+  const pool = [...state.samples];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  quiz.items = pool.slice(0, QUIZ_LEN);
+  quiz.i = 0; quiz.matched = 0;
+  $("quiz-play").hidden = false; $("quiz-done").hidden = true;
+  quizShow();
+}
+
+function quizShow() {
+  if (!quiz.items.length) {
+    $("quiz-progress").textContent = "";
+    $("quiz-msg").textContent = "Примеры не загрузились — запущен ли сервер?";
+    $("quiz-answers").hidden = true;
+    return;
+  }
+  const item = quiz.items[quiz.i];
+  $("quiz-progress").textContent = `Сообщение ${quiz.i + 1} из ${quiz.items.length}`;
+  $("quiz-msg").textContent = item.text;
+  $("quiz-answers").hidden = false;
+  $("quiz-answers").querySelectorAll("button").forEach((b) => {
+    b.disabled = false; b.setAttribute("aria-pressed", "false");
+  });
+  $("quiz-reveal").hidden = true;
+}
+
+async function quizAnswer(btn) {
+  const item = quiz.items[quiz.i];
+  $("quiz-answers").querySelectorAll("button").forEach((b) => {
+    b.disabled = true; b.setAttribute("aria-pressed", String(b === btn));
+  });
+  // Кэш: повторный проход не гоняет тот же текст через сервер второй раз.
+  let body = quiz.cache.get(item.text);
+  try {
+    if (!body) { body = await api.run(item.text); quiz.cache.set(item.text, body); }
+  } catch (err) {
+    $("quiz-match").textContent = explainError(err)[0];
+    $("quiz-reveal").hidden = false;
+    return;
+  }
+  const system = body.answered ? (body.product || {}).assessment : "doubt";
+  const hit = btn.dataset.a === system;
+  if (hit) quiz.matched++;
+  $("quiz-match").innerHTML = (hit ? "Совпало с разбором системы" : "Система решила иначе")
+    + ` — <span class="${verdictOf(body).cls}">${escapeHtml(verdictOf(body).word.toLowerCase())}</span>`;
+  const markers = (body.data && body.data.markers) || [];
+  renderMessage(item.text, markers, body.answered, $("quiz-marked"), $("quiz-markers"), null);
+  $("quiz-marked").hidden = !markers.length;
+  const check = (body.product || {}).check;
+  $("quiz-check").textContent = check && check.id !== "C00" ? `Как проверить: ${check.action}` : "";
+  $("quiz-next").textContent = quiz.i + 1 < quiz.items.length ? "Дальше" : "Итог";
+  $("quiz-reveal").hidden = false;
+}
+
+function quizNext() {
+  if (++quiz.i < quiz.items.length) { quizShow(); window.scrollTo(0, 0); return; }
+  $("quiz-play").hidden = true; $("quiz-done").hidden = false;
+  $("quiz-score").textContent = `${quiz.matched} из ${quiz.items.length}`;
+  $("quiz-score-why").textContent = quiz.matched >= quiz.items.length * 0.8
+    ? "Вы замечаете почти всё, что замечает система. Покажите тренировку близким."
+    : "Мошенники рассчитывают ровно на это — в спешке приёмы не видны. Проверяйте, прежде чем отвечать.";
+}
+
+// ===================================================================
+// 7. Тарифы и кабинет. Сервера для аккаунтов нет, поэтому всё — демо в
 //    localStorage этого браузера. Тариф или цену меняют только в PLANS;
-//    цены — черновик, см. team/вопросы/006.
+//    цены утверждены в team/вопросы/006.
 // ===================================================================
 const PLANS = [
   { id: "free", name: "Бесплатно", for: "для себя", price: 0, period: "",
@@ -717,18 +956,18 @@ function renderUsage() {
 function renderPlans() {
   const current = store.load().plan || "free";
   $("plans").innerHTML = PLANS.map((p) => `
-    <article class="plan${p.best ? " best" : ""}">
-      ${p.best ? '<span class="tag">Рекомендуем</span>' : ""}
+    <article class="plan">
+      ${p.best ? '<p class="label" style="margin-bottom:var(--s1)">Рекомендуем</p>' : '<p class="label" style="margin-bottom:var(--s1)">&nbsp;</p>'}
       <h3>${escapeHtml(p.name)}</h3>
       <div class="for">${escapeHtml(p.for)}</div>
       <div class="price">${p.price === null ? "по запросу"
         : p.price === 0 ? "0 ₽" : `${p.price} ₽ <small>${escapeHtml(p.period)}</small>`}</div>
       <ul>${p.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
       ${p.id === current
-        ? '<button type="button" class="current" disabled>Ваш тариф</button>'
+        ? '<button type="button" class="btn" disabled>Ваш тариф</button>'
         : p.price === null
-          ? '<a class="btn" href="/docs" target="_blank" rel="noopener">Открыть документацию API</a>'
-          : `<button type="button" class="${p.best ? "primary" : ""}" data-plan="${p.id}">Выбрать</button>`}
+          ? '<a class="btn" href="/docs" target="_blank" rel="noopener">Документация API</a>'
+          : `<button type="button" class="btn${p.best ? " primary" : ""}" data-plan="${p.id}">Выбрать</button>`}
     </article>`).join("");
 }
 
@@ -755,21 +994,21 @@ function renderAccount() {
   const history = data.history || [];
   const count = (v) => history.filter((h) => h.verdict === v).length;
   $("acc-stats").innerHTML = `
-    <div><b>${history.length}</b><span class="muted">всего</span></div>
-    <div><b>${count("distrust")}</b><span class="muted">похоже на обман</span></div>
-    <div><b>${count("doubt") + count("abstain")}</b><span class="muted">с сомнением</span></div>`;
+    <div><b>${history.length}</b><span class="muted small">всего</span></div>
+    <div><b>${count("distrust")}</b><span class="muted small">похоже на обман</span></div>
+    <div><b>${count("doubt") + count("abstain")}</b><span class="muted small">с сомнением</span></div>`;
   $("acc-history").innerHTML = history.map((h, i) => `
-    <li><span class="badge ${h.verdict}">${VERDICT_SHORT[h.verdict] || h.verdict}</span>
-      <a href="#/" class="txt" data-history="${i}" style="color:inherit">${escapeHtml(h.text)}</a>
+    <li><span class="v ${h.verdict}">${VERDICT_SHORT[h.verdict] || h.verdict}</span>
+      <a href="#/" class="txt" data-history="${i}">${escapeHtml(h.text)}</a>
       <span class="when">${new Date(h.ts).toLocaleString("ru-RU",
         { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></li>`).join("");
   $("acc-empty").hidden = history.length > 0;
   $("acc-clear").hidden = history.length === 0;
 }
 
-// Роутер на хэше: #/ — проверка, #/plans, #/account. Хэш не уходит на
-// сервер, поэтому api/server.py отдаёт всё тем же маршрутом `/`.
-const VIEWS = { "": "check", plans: "plans", account: "account" };
+// Роутер на хэше. Хэш не уходит на сервер, поэтому api/server.py отдаёт
+// все страницы тем же маршрутом `/`.
+const VIEWS = { "": "check", quiz: "quiz", plans: "plans", account: "account" };
 function route() {
   const view = VIEWS[location.hash.replace(/^#\/?/, "")] || "check";
   document.querySelectorAll("[data-view]").forEach((el) => { el.hidden = el.dataset.view !== view; });
@@ -780,11 +1019,12 @@ function route() {
   if (view === "plans") renderPlans();
   if (view === "account") renderAccount();
   if (view === "check") renderUsage();
+  if (view === "quiz" && !quiz.items.length) quizStart();
   window.scrollTo(0, 0);
 }
 
 // ===================================================================
-// 6. Запуск и обработчики.
+// 8. Запуск и обработчики.
 // ===================================================================
 async function check() {
   const text = $("text").value;
@@ -806,17 +1046,18 @@ async function check() {
 }
 
 async function boot() {
-  const pill = $("backend");
+  const status = $("backend");
   try {
     const health = await api.get("/healthz");
     state.backend = health.backend;
     const mock = health.backend === "mock";
-    pill.innerHTML = `<span class="dot ${mock ? "mock" : "live"}"></span>`
-      + (mock ? "офлайн-заглушки" : `модель: ${escapeHtml(health.backend)}`);
+    status.className = "status " + (mock ? "mock" : "live");
+    status.textContent = mock ? "офлайн-заглушки" : `модель: ${health.backend}`;
     $("mock-note").hidden = !mock;
 
+    state.samples = await api.get("/samples");
     const groups = {};
-    for (const s of await api.get("/samples")) {
+    for (const s of state.samples) {
       const key = SAMPLE_GROUPS[s.id[0]] ? s.id[0] : "other";
       (groups[key] ||= []).push(s);
     }
@@ -832,8 +1073,10 @@ async function boot() {
       $("samples").append(og);
     }
   } catch {
-    pill.innerHTML = `<span class="dot down"></span>сервер не отвечает`;
+    status.className = "status down";
+    status.textContent = "сервер не отвечает";
   }
+  if (location.hash.replace(/^#\/?/, "") === "quiz") quizStart();
 }
 
 $("samples").addEventListener("change", (e) => {
@@ -850,8 +1093,32 @@ $("clear").addEventListener("click", () => {
   $("text").value = ""; $("samples").value = ""; show("idle"); $("text").focus();
 });
 $("compare-btn").addEventListener("click", compare);
-linkHover($("message"));
-linkHover($("markers"));
+linkHover($("message"), $("markers"));
+linkHover($("quiz-marked"), $("quiz-markers"));
+
+$("rec").addEventListener("click", toggleRecording);
+$("audio-file").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) checkAudio(file, file.name);
+  e.target.value = "";
+});
+
+$("choices").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-o]");
+  if (!b) return;
+  $("choices").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  const o = OUTCOME[b.dataset.o];
+  $("outcome").innerHTML = `<p class="out-title">${escapeHtml(o.title)}</p>
+    <ol>${o.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol>`;
+  $("outcome").hidden = false;
+});
+
+$("quiz-answers").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-a]");
+  if (b && !b.disabled) quizAnswer(b);
+});
+$("quiz-next").addEventListener("click", quizNext);
+$("quiz-again").addEventListener("click", () => { quizStart(); window.scrollTo(0, 0); });
 
 $("plans").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-plan]");
