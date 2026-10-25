@@ -414,7 +414,7 @@ def _script(char: str) -> str | None:
 def _disguised(letters: list[tuple[str, str]], dominant: str | None) -> bool:
     """One switch of script inside a word: a disguise or an honest compound?
 
-    «Bыплата», «БA3E»: the letters of one script are all look-alikes of the
+    «Bыплата», «ВЫΠЛAТА»: the letters of one script are all look-alikes of the
     other — a disguise. «СберPay»: a lowercase word then a capitalised one —
     a brand compound. «ЮMoney»: «Ю» and «n» have no look-alikes — honest.
     """
@@ -435,9 +435,9 @@ def _disguised(letters: list[tuple[str, str]], dominant: str | None) -> bool:
 def find_mixed_script_words(text: str) -> list[dict[str, Any]]:
     """Words that mix Cyrillic, Latin and Greek letters, the way spam filters are dodged.
 
-    Flagged: any Greek letter inside a mixed word («ΌБНΑРУЖЕΉ»), two or more
-    switches of script («ПEҎЕХОДИTЕ»), or a single switch where one side is
-    all look-alikes («БA3E»). Brand compounds like «СберPay» and «ЮMoney» are
+    Flagged: any Greek letter inside a mixed word («ΌДОБРЕНА»), two or more
+    switches of script («ПEРEЙДИTЕ»), or a single switch where one side is
+    all look-alikes («Bыплата»). Brand compounds like «СберPay» and «ЮMoney» are
     not flagged. A whole word in a foreign script («Ɓ») is not a mixed word.
     """
     counts = Counter(s for s in map(_script, text) if s)
@@ -473,7 +473,7 @@ def find_invalid_inns(text: str) -> list[dict[str, Any]]:
     """An ИНН that cannot exist: wrong length or a failed control digit.
 
     A company has 10 digits, a sole trader or a person 12, and the last one
-    or two digits are a checksum. «ИНН71384592» (8 digits) from a fake
+    or two digits are a checksum. «ИНН12345678» (8 digits) from a fake
     receipt is caught; a valid ИНН is not reported, because a valid number
     proves nothing about who sent the message.
     """
@@ -685,19 +685,20 @@ if __name__ == "__main__":
     expect(kinds("ИНН 7707083893, ИНН/КПП 500100732259/770701001"), [])
     expect(kinds("ИНН: 7707083894"), [("invalid_inn", "ИНН: 7707083894")])
 
-    # A real message: r-соня-01, a fake WildBerries receipt.
-    real = Path(__file__).resolve().parent.parent / "evals" / "real" / "соня.jsonl"
-    case = next(json.loads(line) for line in real.open(encoding="utf-8")
-                if json.loads(line)["id"] == "r-соня-01")
+    # A whole message, written for this test: a fake receipt in the style of
+    # mass mailings — wrong ИНН, a link and letters swapped for look-alikes.
+    case = {"id": "fake-receipt", "text": (
+        "ЧЕК #40533. ИНН12345678. Доступные призы по чеку: Забрать http://пример.ru\n"
+        "ВЫΠЛAТА ΌДОБРЕНА, ПEРEЙДИTЕ К ПРΌВЕΡКЕ")}
     signals = find_mechanical_signals(case["text"])
     for s in signals:
         expect(case["text"][s["start"]:s["end"]], s["quote"])
-    expect([s["quote"] for s in signals if s["kind"] != "mixed_script"],
-           ["ИНН71384592", "http://примерссылки.ru"])
+    expect([s["quote"] for s in signals if s["kind"] in ("invalid_inn", "link")],
+           ["ИНН12345678", "http://пример.ru"])
     expect([s["reason"] for s in signals if s["kind"] == "invalid_inn"],
            ["8 цифр, а у юрлица 10, у ИП и физлица 12"])
     expect([s["quote"] for s in signals if s["kind"] == "mixed_script"],
-           ["ΌБНΑРУЖЕΉ", "БA3E", "ДΌТАЦИΌНHЫХ", "ПEҎЕХОДИTЕ", "ПРOВЕΡКЕ"])
+           ["ВЫΠЛAТА", "ΌДОБРЕНА", "ПEРEЙДИTЕ", "ПРΌВЕΡКЕ"])
 
     # The gate, with a mapping the way a domain spec would pass it.
     mapping = {"card_number": ("money_request", "code_request"),
@@ -706,8 +707,8 @@ if __name__ == "__main__":
                 unsafe_verdicts=("trust",))
     naive = {"markers": [], "assessment": "trust"}
     problems, _ = check_signals(naive, case["text"], mapping, **gate)
-    expect(problems, ["markers[].type: no 'external_link' for link 'http://примерссылки.ru'",
-                      "assessment: 'trust' with link 'http://примерссылки.ru'"])
+    expect(problems, ["markers[].type: no 'external_link' for link 'http://пример.ru'",
+                      "assessment: 'trust' with link 'http://пример.ru'"])
     good = {"markers": [{"type": "too_good"}, {"type": "external_link"}],
             "assessment": "distrust"}
     expect(check_signals(good, case["text"], mapping, **gate)[0], [])
@@ -716,7 +717,7 @@ if __name__ == "__main__":
                          s02, mapping, **gate)[0],
            ["markers[].type: no 'code_request' for secret_request 'продиктуйте код из СМС'"])
     # Unmapped kinds are signals only: a bad ИНН alone never fails the gate.
-    expect(check_signals({"markers": [], "assessment": "trust"}, "ИНН71384592",
+    expect(check_signals({"markers": [], "assessment": "trust"}, "ИНН12345678",
                          mapping, **gate)[0], [])
 
     print(f"core.verify: {checked} checks passed\n")
