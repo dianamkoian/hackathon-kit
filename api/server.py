@@ -36,7 +36,17 @@ app = FastAPI(title="hackathon-kit", version="0.1.0")
 # нам не хватает, а этот источник пополняется сам.
 _store = Store()
 _cases = load_cases()
-_provider = get_provider(mock_handler=make_mock_handler(_cases))
+# Сервис обязан подняться, даже если модель настроена неверно. На площадке
+# не будет времени чинить окружение: пусть работают детекторы и честный отказ,
+# а не «сервер не стартовал». Деградация, а не падение.
+try:
+    _provider = get_provider(mock_handler=make_mock_handler(_cases))
+    _provider_error: str | None = None
+except Exception as exc:  # noqa: BLE001 — любая беда с моделью не должна ронять сервис
+    _provider = None
+    _provider_error = f"{type(exc).__name__}: {exc}"
+    print(f"[server] модель недоступна ({_provider_error}); "
+          f"работаем только на детекторах")
 
 
 class RunRequest(BaseModel):
@@ -48,7 +58,8 @@ class RunRequest(BaseModel):
 def healthz() -> dict:
     return {
         "ok": True,
-        "backend": _provider.name,
+        "backend": _provider.name if _provider else "mechanical-only",
+        "model_error": _provider_error,
         "spec": SPEC.name,
         "confidence_floor": confidence_floor(),
     }
@@ -98,6 +109,9 @@ def run_endpoint(req: RunRequest) -> dict:
             }
 
     try:
+        if _provider is None:
+            # Модели нет вовсе — ниже отработает механический разбор.
+            raise RuntimeError(f"модель недоступна: {_provider_error}")
         result = runner(SPEC, {"text": req.text}, _provider)
     except RuntimeError as exc:
         # Модели нет или она не знает этот текст. Часть приёмов наблюдаема
