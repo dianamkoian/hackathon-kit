@@ -139,7 +139,7 @@ def run_endpoint(req: RunRequest) -> dict:
                 "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
                 "answered": True, "data": quick, "confidence": None,
                 "reason": quick["explanation"], "tier_used": "mechanical",
-                "product": present(quick),
+                "product": present(quick, req.text),
                 "safeword": prompt_for(_safeword, quick.get("markers")),
                 "scheme": (lambda sc: sc.to_dict() if sc else None)(
                     identify(quick.get("markers"), req.text)),
@@ -186,7 +186,7 @@ def run_endpoint(req: RunRequest) -> dict:
             "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
             "answered": True, "data": fallback, "confidence": None,
             "reason": f"{fallback['explanation']} ({exc})",
-            "tier_used": "mechanical", "product": present(fallback),
+            "tier_used": "mechanical", "product": present(fallback, req.text),
             "safeword": prompt_for(_safeword, fallback.get("markers")),
             "scheme": (lambda sc: sc.to_dict() if sc else None)(
                 identify(fallback.get("markers"), req.text)),
@@ -210,7 +210,7 @@ def run_endpoint(req: RunRequest) -> dict:
         )
     data_markers = (result.data or {}).get("markers") if isinstance(result.data, dict) else None
     return {"arm": req.arm, "seen_before": seen_before,
-            **result.to_dict(), "product": present(result.data),
+            **result.to_dict(), "product": present(result.data, req.text),
             "safeword": prompt_for(_safeword, data_markers),
             "question": (lambda q: q.to_dict() if q else None)(
                 clarifying_question(data_markers, req.text, _profile)),

@@ -523,13 +523,29 @@ _NEW_CONTACT_PHRASE = re.compile(
     re.IGNORECASE)
 
 
+# Слухи: призыв разослать и «от вас скрывают». Сами по себе не обман, но
+# новость с таким оформлением нельзя принимать без источника.
+_SPREAD_CALL = re.compile(
+    r"(?:перешлите|перешли|поделитесь|поделись|распространите|распространи|"
+    r"отправьте|отправь|разошлите|расшарьте)[^.!?\n]{0,20}?"
+    r"(?:всем|друз\w*|родн\w*|близк\w*|знаком\w*|по чатам|в чаты)",
+    re.IGNORECASE)
+_SUPPRESSION = re.compile(
+    r"(?:власти|сми|телевизор\w*|правительство|чиновники)[^.!?\n]{0,25}?"
+    r"(?:скрыва\w*|молч\w*|замалчива\w*)"
+    r"|пока\s+(?:\w+\s+)?не\s+удалил\w*|скоро\s+удал\w*",
+    re.IGNORECASE)
+
+
 def _phrase_signals(text: str) -> list[dict[str, Any]]:
     """Находит формулировки, которые видно глазом, и цитирует их по позиции."""
     found: list[dict[str, Any]] = []
     for kind, pattern in (("money_phrase", _MONEY_PHRASE),
                           ("urgency_phrase", _URGENCY_PHRASE),
                           ("new_contact_phrase", _NEW_CONTACT_PHRASE),
-                          ("too_good_phrase", _TOO_GOOD_PHRASE)):
+                          ("too_good_phrase", _TOO_GOOD_PHRASE),
+                          ("spread_call", _SPREAD_CALL),
+                          ("suppression", _SUPPRESSION)):
         for m in pattern.finditer(text):
             found.append({"kind": kind, "quote": m.group(0).strip(),
                           "start": m.start(), "end": m.end()})
@@ -640,6 +656,14 @@ if __name__ == "__main__":
            [("phone_number", "+7 (916) 123-45-67"), ("phone_number", "8 800 555-35-35")])
     expect(kinds("WhatsApp +375 29 123 45 67"), [("phone_number", "+375 29 123 45 67")])
     expect(kinds("позвоните по номеру 8 800 ***-**-** для отмены"), [])
+
+    # Слухи: призыв разослать и «от вас скрывают».
+    expect(kinds("Власти скрывают! Перешлите всем родным, пока пост не удалили"),
+           [("spread_call", "Перешлите всем"), ("suppression", "Власти скрывают"),
+            ("suppression", "пока пост не удалили")])
+    expect(kinds("Поделитесь с друзьями. По телевизору молчат."),
+           [("spread_call", "Поделитесь с друзьями"), ("suppression", "телевизору молчат")])
+    expect(kinds("В Казани открыли станцию метро, сообщает пресс-служба мэрии."), [])
 
     # Mixed scripts: disguises yes, brand compounds no.
     expect(kinds("Bыплата одобрена"), [("mixed_script", "Bыплата")])

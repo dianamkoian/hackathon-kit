@@ -47,6 +47,8 @@ MARKER_TYPES = [
     "too_good",        # приз, компенсация, доходность, лёгкий заработок
     "unverifiable_proof",  # скриншот, фото, голосовое как «доказательство»
     "remote_access",   # установить приложение удалённого доступа
+    "spread_call",     # перешлите всем, поделитесь, распространите
+    "suppression",     # власти скрывают, по телевизору молчат, пока не удалили
 ]
 
 # Ключ ответа НЕ называется "verdict": по этому ключу mock-бэкенд отличает
@@ -94,6 +96,9 @@ SYSTEM = (
     "«служба безопасности», срочный перевод от «близкого» с нового номера и т.п.;\n"
     "   - doubt — есть маркеры, но сообщение может быть и настоящим. Это нормальный "
     "ответ, а не провал: по тексту нельзя отличить, и человеку нужна проверка.\n"
+    "   Сообщение о событии (новость, слух, «говорят») без проверяемого источника — "
+    "не trust, а doubt и C20, даже без маркеров: факты мы не проверяем. Фото или "
+    "видео как доказательство события — C05.\n"
     "3. `check_id`: одна проверка из каталога — самая быстрая из тех, что реально "
     "снимают сомнение для этого сообщения. Для trust — C00.\n"
     "4. `explanation`: одна-две фразы на русском, простым языком, без запугивания.\n\n"
@@ -105,6 +110,7 @@ MARKER_TYPES = (
     "money_request", "urgency", "new_contact", "authority", "secrecy",
     "code_request", "external_link", "prepayment", "too_good",
     "unverifiable_proof", "remote_access", "obfuscation",
+    "spread_call", "suppression",
 )
 
 VERIFIER_SYSTEM = (
@@ -115,7 +121,7 @@ VERIFIER_SYSTEM = (
     "предоплата, слишком хорошее предложение, непроверяемое «доказательство». "
     "Выписывай их дословными цитатами.\n"
     "Провал, если: пропущен признак, который меняет оценку; trust поставлен при "
-    "наличии просьбы денег, кода или ссылки; distrust поставлен обычному бытовому "
+    "наличии просьбы денег, кода или ссылки; trust поставлен новости или слуху; distrust поставлен обычному бытовому "
     "сообщению; проверка не снимает именно это сомнение (например, обратный поиск "
     "картинки для звонка от «банка»)."
 )
@@ -160,7 +166,28 @@ def check_card(check_id: str | None) -> dict | None:
 ABSTAIN_CHECK_ID = "C12"
 
 
-def present(data: Any) -> dict:
+_SEARCH_NOISE = re.compile(
+    r"https?://\S+|www\.\S+|\S+@\S+|\+?\d[\d\s()-]{6,}\d|\d{4,}")
+
+
+def _search_links(text: str) -> list[dict]:
+    """Поиск новости в один клик. Запрос — первая фраза, без личных данных.
+
+    Ссылки, почта, телефоны и числа длиннее трёх цифр вырезаются до того, как
+    текст попадёт в URL чужого поисковика.
+    """
+    from urllib.parse import quote
+
+    first = re.split(r"(?<=[.!?…])\s|\n", text.strip(), maxsplit=1)[0]
+    query = " ".join(_SEARCH_NOISE.sub(" ", first).split())[:100].strip()
+    if not query:
+        return []
+    q = quote(query)
+    return [{"title": "Найти в Яндексе", "url": f"https://yandex.ru/search/?text={q}"},
+            {"title": "Найти в Google Новостях", "url": f"https://news.google.com/search?q={q}&hl=ru"}]
+
+
+def present(data: Any, text: str = "") -> dict:
     """То, что показывает продукт: оценка + одна карточка проверки."""
     if not isinstance(data, dict):
         return {"assessment": "doubt", "check": check_card(ABSTAIN_CHECK_ID),
@@ -170,9 +197,14 @@ def present(data: Any) -> dict:
     # и человек перестаёт верить предупреждениям вообще. Но и «всё чисто»
     # сказать нельзя: отсутствие улик не доказательство невиновности.
     no_markers = not data.get("markers")
-    state = "clean" if no_markers else data.get("assessment", "doubt")
+    card = check_card(data.get("check_id"))
+    rumour = bool(card) and card["id"] == "C20"
+    # Слух без маркеров — всё равно «сомневаюсь»: факты мы не проверяем.
+    state = "clean" if no_markers and not rumour else data.get("assessment", "doubt")
+    if rumour:
+        card = {**card, "search": _search_links(text)}
     return {"assessment": data.get("assessment"), "state": state,
-            "check": check_card(data.get("check_id")), "abstained": False}
+            "check": card, "abstained": False}
 
 
 SPEC = TaskSpec(
@@ -191,6 +223,8 @@ SPEC = TaskSpec(
     signal_markers={
         "link": "external_link",
         "secret_request": "code_request",
+        "spread_call": "spread_call",
+        "suppression": "suppression",
     },
     signal_type_field="markers[].type",
     signal_verdict_field="assessment",
@@ -295,6 +329,8 @@ _SIGNAL_TO_MARKER = {
     "urgency_phrase": "urgency",
     "new_contact_phrase": "new_contact",
     "too_good_phrase": "too_good",
+    "spread_call": "spread_call",
+    "suppression": "suppression",
 }
 
 # Сигналы, каждый из которых сам по себе — основание не доверять сообщению.
@@ -342,6 +378,8 @@ def mechanical_answer(text: str) -> dict | None:
         check_id = "C01"           # просьба о деньгах — перезвонить на старый номер
     elif {"money_phrase", "new_contact_phrase"} & kinds:
         check_id = "C01"           # просьба денег с нового контакта
+    elif {"spread_call", "suppression"} & kinds:
+        check_id = "C20"           # слух — найти новость в двух СМИ
     elif "link" in kinds:
         check_id = "C04"           # ссылка — открыть сервис вручную
     else:
