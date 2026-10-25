@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 from .structured import StructuredError, ask_structured
 from .trace import Trace
-from .verify import check_quotes, verify_with_model
+from .verify import check_quotes, check_signals, verify_with_model
 
 
 @dataclass
@@ -37,6 +37,13 @@ class TaskSpec:
     # тогда проверяющая модель объявляет пропуском «Добрый день!», а код честно
     # отказывается отвечать. Домен обязан назвать свой словарь.
     omission_types: tuple[str, ...] = ()
+    # Механический барьер Сони: что код видит в тексте, то ответ обязан назвать.
+    # Пусто = барьер выключен, как пустой quote_fields. Пути и «опасные вердикты»
+    # тоже здесь, чтобы ядро не знало про тему.
+    signal_markers: dict = field(default_factory=dict)
+    signal_type_field: str = ""
+    signal_verdict_field: str | None = None
+    signal_unsafe_verdicts: tuple[str, ...] = ()
     # Запрещать ли ответ из-за пропуска. Последствие пропуска зависит от задачи:
     # пропущенное обязательство — это неверно поставленная человеку задача, и там
     # вето уместно. Пропущенный один приём манипуляции из пяти — всё ещё полезный
@@ -128,6 +135,30 @@ def run(spec: TaskSpec, fields: dict, provider, *, floor: float | None = None,
         if quote_problems:
             last_reason = f"ungrounded: {quote_problems[0]}"
             continue
+
+        if spec.signal_markers:
+            problems, signals = check_signals(
+                data, source_text, spec.signal_markers,
+                type_field=spec.signal_type_field,
+                verdict_field=spec.signal_verdict_field,
+                unsafe_verdicts=spec.signal_unsafe_verdicts,
+            )
+            found = "; ".join(
+                f"{s['kind']}: {s.get('domain') or s.get('text', '')}"[:48]
+                for s in signals[:4]
+            )
+            trace.add(
+                "signals", not problems,
+                detail=(f"найдено — {found}" if found else "признаков не найдено")
+                if not problems else "; ".join(problems[:3]),
+            )
+            # Здесь вето уместно, в отличие от вердикта модели: регулярка,
+            # нашедшая ссылку или просьбу кода, не ошибается так, как ошибается
+            # модель. Замер Сони на 35 кейсах: ни одного ложного провала на
+            # эталонных ответах, включая настоящие письма со ссылками.
+            if problems:
+                last_reason = f"признак без маркера: {problems[0]}"
+                continue
 
         try:
             passed, confidence, reason = verify_with_model(
