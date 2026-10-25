@@ -104,7 +104,7 @@ SYSTEM = (
 MARKER_TYPES = (
     "money_request", "urgency", "new_contact", "authority", "secrecy",
     "code_request", "external_link", "prepayment", "too_good",
-    "unverifiable_proof", "remote_access",
+    "unverifiable_proof", "remote_access", "obfuscation",
 )
 
 VERIFIER_SYSTEM = (
@@ -285,6 +285,7 @@ _SIGNAL_TO_MARKER = {
     "card_number": "money_request",
     "secret_request": "code_request",
     "link": "external_link",
+    "mixed_script": "obfuscation",
 }
 
 # Сигналы, каждый из которых сам по себе — основание не доверять сообщению.
@@ -326,8 +327,10 @@ def mechanical_answer(text: str) -> dict | None:
         check_id = "C11"           # просят код из СМС, пароль, данные карты
     elif "card_number" in kinds:
         check_id = "C01"           # просьба о деньгах — перезвонить на старый номер
-    else:
+    elif "link" in kinds:
         check_id = "C04"           # ссылка — открыть сервис вручную
+    else:
+        check_id = "C18"           # подмена букв — текст маскируется от фильтров
 
     names = ", ".join(sorted(kinds))
     return {
