@@ -111,6 +111,8 @@ SPEC = TaskSpec(
     schema=SCHEMA,
     verifier_system=VERIFIER_SYSTEM,
     quote_fields=("commitments[].quote",),
+    omission_types=("commitment",),
+    omission_is_veto=True,  # пропущенное обязательство — неверно поставленная задача
     source_field="text",
     router=route,
     grade=grade,
@@ -194,7 +196,10 @@ def make_mock_handler(cases: list[dict]):
             if isinstance(c, dict)
         }
         missing = [q for q in expected_quotes if _norm(q) not in answer_quotes]
-        base = {"found_in_source": expected_quotes, "overlooked": missing}
+        # Схема ждёт объекты {type, quote}: тип нужен коду, чтобы отличить
+        # настоящий пропуск от вежливой фразы. У обязательств тип один.
+        base = {"found_in_source": expected_quotes,
+                "overlooked": [{"type": "commitment", "quote": q} for q in missing]}
 
         override = case.get("mock_verifier", {}).get(str(call_number))
         if override == "pass":

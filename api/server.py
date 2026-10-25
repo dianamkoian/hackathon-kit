@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -112,6 +112,53 @@ def run_endpoint(req: RunRequest) -> dict:
     )
     return {"arm": req.arm, "seen_before": seen_before,
             **result.to_dict(), "product": present(result.data)}
+
+
+@app.post("/run-audio")
+async def run_audio(file: UploadFile = File(...)) -> dict:
+    """Голосовое сообщение: распознаём речь и дальше тот же путь, что у текста.
+
+    Зачем это именно здесь, а не отдельным продуктом: голосом обманывают чаще,
+    чем текстом, и как раз в голосовых «мама, это я» звучит убедительнее, чем
+    читается. Распознавание локальное — голос никуда не уходит с машины.
+    """
+    import tempfile
+
+    from core.asr import transcribe
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="пустой файл")
+    if len(raw) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="файл больше 25 МБ")
+
+    suffix = Path(file.filename or "audio.wav").suffix or ".wav"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(raw)
+        tmp_path = Path(tmp.name)
+    try:
+        heard = transcribe(tmp_path)
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="распознавание речи недоступно: pip install mlx-whisper (только Apple Silicon)",
+        ) from None
+    except Exception as exc:  # noqa: BLE001 — показать причину, а не 500
+        raise HTTPException(status_code=422, detail=f"не удалось распознать: {exc}") from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    if not heard.text.strip():
+        raise HTTPException(status_code=422, detail="в записи не распознана речь")
+
+    body = run_endpoint(RunRequest(text=heard.text))
+    body["heard"] = {
+        "text": heard.text,
+        "seconds": round(heard.seconds, 1),
+        "latency_ms": round(heard.latency_ms),
+        "model": heard.model,
+    }
+    return body
 
 
 @app.get("/stats")
