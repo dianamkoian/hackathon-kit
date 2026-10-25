@@ -288,7 +288,7 @@ def find_card_numbers(text: str) -> list[dict[str, Any]]:
 
 
 _URL = re.compile(r"(?<![\w@])(?:https?://|www\.)[^\s<>\"']+", re.IGNORECASE)
-# A bare domain needs a known TLD: without one, «т.е.» and «CDEK.Маркет» match.
+# A bare domain needs a known TLD: without one, «т.е.» and «Пример.Маркет» match.
 _TLDS = ("ru|рф|su|com|net|org|info|biz|io|me|ly|cc|co|to|gl|ws|xyz|top|site|"
          "online|store|shop|app|link|click|pro|club|live|kz|by|ua|uz")
 _BARE_DOMAIN = re.compile(
@@ -645,10 +645,10 @@ if __name__ == "__main__":
     # Links: scheme, www, bare domain with a known TLD; userinfo does not hide the host.
     expect(kinds("оплатите доставку по ссылке: prize-delivery-ru.top"),
            [("link", "prize-delivery-ru.top")])
-    expect(kinds("Забрать промо http://примерссылки.ru."), [("link", "http://примерссылки.ru")])
+    expect(kinds("Получить бонус http://примерссылки.ru."), [("link", "http://примерссылки.ru")])
     expect([s["domain"] for s in find_links("вход: https://sberbank.ru@evil.top/login?x=1")],
            ["evil.top"])
-    expect(kinds("т.е. CDEK.Маркет, почта ivan@mail.ru"), [])
+    expect(kinds("т.е. Пример.Маркет, почта ivan@mail.ru"), [])
 
     # Requests for a secret, both orders; negated advice is not a request.
     expect(kinds("Для отмены продиктуйте код из СМС оператору."),
