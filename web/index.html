@@ -9,8 +9,9 @@
   api/server.py, она работает офлайн на площадке и через туннель, и её может
   править любой ассистент. Порядок внутри:
     1. стили: токены цвета → каркас → карточки по порядку на экране
-    2. разметка: ввод → пустое состояние → загрузка → ошибка → результат
-    3. скрипт: словари подписей → клиент API → состояния экрана → отрисовка
+    2. разметка по страницам (data-view): проверка (#/) · тарифы (#/plans) · кабинет (#/account)
+    3. скрипт: словари подписей → клиент API → состояния экрана → отрисовка →
+       тарифы и кабинет (демо в localStorage) → запуск
   Формат ответа сервера не меняем: на него завязаны проверки и примеры.
 -->
 <style>
@@ -157,11 +158,73 @@
   .compare > div { padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
   .compare b { display:block; }
 
+  /* ---------- навигация ---------- */
+  .brand { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  nav { display:flex; gap:4px; flex-wrap:wrap; }
+  nav a { color:var(--muted); text-decoration:none; font-size:14px; padding:6px 12px;
+          border-radius:8px; }
+  nav a:hover { color:var(--ink); background:var(--panel); }
+  nav a[aria-current="page"] { color:var(--ink); background:var(--panel);
+                               box-shadow:inset 0 0 0 1px var(--line); font-weight:600; }
+  .usage { margin:10px 0 0; }
+  .usage a, .note a { color:var(--accent); }
+  .note { font-size:13px; color:var(--muted); padding:10px 12px; border-radius:8px;
+          border:1px dashed var(--line); margin:0 0 14px; }
+
+  /* ---------- тарифы ---------- */
+  .plans { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:14px; }
+  .plan { display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--line);
+          border-radius:var(--radius); padding:18px 16px; }
+  .plan.best { border:2px solid var(--accent); }
+  .plan .tag { align-self:flex-start; font-size:11px; font-weight:700; text-transform:uppercase;
+               letter-spacing:.05em; color:var(--accent-ink); background:var(--accent);
+               padding:2px 8px; border-radius:999px; margin-bottom:8px; }
+  .plan h3 { margin:0; font-size:18px; }
+  .plan .for { color:var(--muted); font-size:13px; margin:2px 0 12px; }
+  .plan .price { font-size:28px; font-weight:700; line-height:1.1; }
+  .plan .price small { font-size:14px; font-weight:400; color:var(--muted); }
+  .plan ul { list-style:none; padding:0; margin:14px 0 18px; flex:1; font-size:14px; }
+  .plan li { padding:4px 0 4px 22px; position:relative; }
+  .plan li::before { content:"✓"; position:absolute; left:0; color:var(--ok); font-weight:700; }
+  .plan button, .plan .btn { width:100%; }
+  .btn { display:inline-block; text-align:center; text-decoration:none; font-size:15px; padding:9px 16px;
+         border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); }
+  .plan button.current { border-color:var(--ok); color:var(--ok); }
+  .faq dt { font-weight:600; margin-top:10px; }
+  .faq dd { margin:2px 0 0; color:var(--muted); font-size:14px; }
+
+  /* ---------- кабинет ---------- */
+  .acc-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .acc-grid .panel { margin-bottom:0; }
+  .field { display:block; margin-top:8px; }
+  .field input { width:100%; font:inherit; padding:8px 10px; border-radius:8px; margin-top:4px;
+                 border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  .big { font-size:22px; font-weight:700; }
+  .bar { height:8px; border-radius:999px; background:var(--bg); border:1px solid var(--line);
+         overflow:hidden; margin:8px 0 4px; }
+  .bar span { display:block; height:100%; background:var(--accent); }
+  .bar.full span { background:var(--warn); }
+  .stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:10px; }
+  .stats div { padding:8px 10px; border-radius:8px; background:var(--bg); border:1px solid var(--line); }
+  .stats b { display:block; font-size:18px; }
+  .history { list-style:none; padding:0; margin:0; }
+  .history li { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;
+                padding:10px 4px; border-bottom:1px solid var(--line); }
+  .history li:last-child { border-bottom:none; }
+  .history .txt { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
+  .history .when { color:var(--muted); font-size:12px; white-space:nowrap; }
+  .badge { font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .badge.trust { color:var(--ok); background:var(--ok-bg); }
+  .badge.doubt, .badge.abstain { color:var(--warn); background:var(--warn-bg); }
+  .badge.distrust { color:var(--bad); background:var(--bad-bg); }
+
   /* ---------- узкий экран ---------- */
   @media (max-width:600px) {
     body { padding:14px 12px 40px; }
     h1 { font-size:21px; }
-    .how, .compare { grid-template-columns:1fr; }
+    .how, .compare, .plans, .acc-grid { grid-template-columns:1fr; }
+    .history li { grid-template-columns:auto 1fr; }
+    .history .when { grid-column:2; }
     .verdict .title { font-size:18px; }
     .row button.primary { flex:1 1 auto; }
     .hint-kbd { display:none; }
@@ -171,14 +234,22 @@
 <body>
 <main>
   <header>
-    <div>
+    <div class="brand">
       <h1>Второе мнение</h1>
-      <p class="sub">Вставьте подозрительное сообщение. Мы не угадываем «фейк или нет» —
-        показываем приёмы манипуляции цитатами из самого текста и даём одну проверку,
-        которая снимает сомнение быстрее всего.</p>
+      <nav aria-label="Разделы">
+        <a href="#/">Проверка</a>
+        <a href="#/plans">Тарифы</a>
+        <a href="#/account">Кабинет</a>
+      </nav>
     </div>
     <span class="pill" id="backend" title="Какая модель отвечает"><span class="dot"></span>подключаюсь…</span>
   </header>
+
+  <!-- ===================== страница: проверка ===================== -->
+  <div data-view="check">
+  <p class="sub" style="margin:0 0 16px">Вставьте подозрительное сообщение. Мы не угадываем «фейк или нет» —
+    показываем приёмы манипуляции цитатами из самого текста и даём одну проверку,
+    которая снимает сомнение быстрее всего.</p>
 
   <!-- ввод -->
   <section class="panel">
@@ -194,6 +265,7 @@
       <span class="hint-kbd"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> — проверить</span>
       <button class="link" id="clear" type="button">Очистить</button>
     </div>
+    <p class="usage muted" id="usage"></p>
   </section>
 
   <!-- пустое состояние -->
@@ -263,6 +335,64 @@
           <tbody id="trace"></tbody>
         </table></div>
       </details>
+    </section>
+  </div>
+  </div>
+
+  <!-- ===================== страница: тарифы ===================== -->
+  <div data-view="plans" hidden>
+    <p class="sub" style="margin:0 0 16px">Базовая проверка бесплатна всегда: человеку, которому
+      прямо сейчас пишут мошенники, нельзя показывать стену оплаты.</p>
+    <div class="plans" id="plans"></div>
+    <p class="note">Демо-режим: оплата не подключена, тариф переключается сразу и хранится
+      только в этом браузере. Цены — черновик команды.</p>
+    <section class="panel">
+      <h2>Частые вопросы</h2>
+      <dl class="faq">
+        <dt>Что будет, если бесплатные проверки закончились?</dt>
+        <dd>Проверка всё равно выполнится — мы только напомним о тарифе. Отказать в помощи
+          в момент обмана хуже, чем недополучить оплату.</dd>
+        <dt>Видите ли вы мои сообщения?</dt>
+        <dd>Наш сервер текст не записывает: он уходит на разбор модели, и ответ сразу
+          возвращается вам. История в кабинете хранится у вас в браузере.</dd>
+        <dt>Чем «Для организаций» отличается от остальных?</dt>
+        <dd>Тот же разбор, но через API: банк или оператор встраивает проверку в своё приложение
+          и получает ответ вместе с полной трассировкой.</dd>
+      </dl>
+    </section>
+  </div>
+
+  <!-- ===================== страница: кабинет ===================== -->
+  <div data-view="account" hidden>
+    <p class="note">Демо-кабинет: вход и оплата появятся вместе с сервером. Сейчас профиль,
+      тариф и история хранятся только в этом браузере.</p>
+    <div class="acc-grid">
+      <section class="panel">
+        <h2>Профиль</h2>
+        <label class="field muted">Как к вам обращаться
+          <input id="acc-name" autocomplete="off" placeholder="Например, Анна"></label>
+        <label class="field muted">Кому сообщить, если пришло подозрительное
+          <input id="acc-trusted" autocomplete="off" placeholder="Имя близкого человека"></label>
+        <p class="muted" id="acc-saved" style="margin:8px 0 0" hidden>Сохранено</p>
+      </section>
+      <section class="panel">
+        <h2>Тариф</h2>
+        <div class="big" id="acc-plan"></div>
+        <div class="muted" id="acc-plan-for"></div>
+        <div class="bar" id="acc-bar"><span></span></div>
+        <div class="muted" id="acc-usage"></div>
+        <div class="row"><button type="button" id="acc-change">Сменить тариф</button></div>
+      </section>
+    </div>
+    <section class="panel" style="margin-top:14px">
+      <h2>Ваши проверки</h2>
+      <div class="stats" id="acc-stats"></div>
+      <ul class="history" id="acc-history" style="margin-top:10px"></ul>
+      <p class="muted" id="acc-empty">Пока пусто. <a href="#/" style="color:var(--accent)">Проверьте первое сообщение</a> —
+        оно появится здесь.</p>
+      <div class="row" style="justify-content:flex-end">
+        <button class="link" id="acc-clear" type="button">Очистить историю</button>
+      </div>
     </section>
   </div>
 </main>
@@ -521,7 +651,137 @@ async function compare() {
 }
 
 // ===================================================================
-// 5. Запуск и обработчики.
+// 5. Тарифы и кабинет. Сервера для аккаунтов нет, поэтому всё — демо в
+//    localStorage этого браузера. Тариф или цену меняют только в PLANS;
+//    цены — черновик, см. team/вопросы/006.
+// ===================================================================
+const PLANS = [
+  { id: "free", name: "Бесплатно", for: "для себя", price: 0, period: "",
+    perDay: 5,
+    features: ["5 проверок в день", "вердикт, цитаты и проверка", "история в браузере"] },
+  { id: "family", name: "Семья", for: "до 5 человек", price: 199, period: "в месяц",
+    perDay: Infinity, best: true,
+    features: ["проверки без лимита", "до 5 участников, включая родителей",
+               "сообщить близкому одной кнопкой", "сравнение с одной моделью"] },
+  { id: "org", name: "Для организаций", for: "банки, операторы, сервисы", price: null,
+    period: "", perDay: Infinity,
+    features: ["доступ по API: POST /run", "полная трассировка каждого ответа",
+               "отчёт о качестве на ваших данных", "свой порог отказа"] },
+];
+const planById = (id) => PLANS.find((p) => p.id === id) || PLANS[0];
+
+// Хранилище может быть недоступно (приватное окно, блокировка) — тогда
+// страница работает, просто ничего не запоминает.
+const store = {
+  key: "second-opinion.v1",
+  load() {
+    try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch { return {}; }
+  },
+  save(patch) {
+    const next = { ...this.load(), ...patch };
+    try { localStorage.setItem(this.key, JSON.stringify(next)); } catch {}
+    return next;
+  },
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+function usedToday() {
+  return (store.load().history || []).filter((h) => h.ts.slice(0, 10) === today()).length;
+}
+
+function record(body, text) {
+  const verdict = !body.answered ? "abstain" : (body.product || {}).assessment || "doubt";
+  const history = [{ ts: new Date().toISOString(), text, verdict,
+                     check: ((body.product || {}).check || {}).action || "" },
+                   ...(store.load().history || [])].slice(0, 50);
+  store.save({ history });
+  renderUsage();
+}
+
+// Лимит не блокирует проверку: отказать в помощи в момент обмана хуже,
+// чем недополучить оплату. Только напоминаем.
+function renderUsage() {
+  const plan = planById(store.load().plan);
+  const used = usedToday();
+  $("usage").innerHTML = plan.perDay === Infinity
+    ? `Тариф «${escapeHtml(plan.name)}»: проверки без лимита`
+    : used < plan.perDay
+      ? `Сегодня ${used} из ${plan.perDay} бесплатных проверок`
+      : `Бесплатные проверки на сегодня закончились — проверка всё равно сработает. `
+        + `<a href="#/plans">Тарифы</a>`;
+}
+
+function renderPlans() {
+  const current = store.load().plan || "free";
+  $("plans").innerHTML = PLANS.map((p) => `
+    <article class="plan${p.best ? " best" : ""}">
+      ${p.best ? '<span class="tag">Рекомендуем</span>' : ""}
+      <h3>${escapeHtml(p.name)}</h3>
+      <div class="for">${escapeHtml(p.for)}</div>
+      <div class="price">${p.price === null ? "по запросу"
+        : p.price === 0 ? "0 ₽" : `${p.price} ₽ <small>${escapeHtml(p.period)}</small>`}</div>
+      <ul>${p.features.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
+      ${p.id === current
+        ? '<button type="button" class="current" disabled>Ваш тариф</button>'
+        : p.price === null
+          ? '<a class="btn" href="/docs" target="_blank" rel="noopener">Открыть документацию API</a>'
+          : `<button type="button" class="${p.best ? "primary" : ""}" data-plan="${p.id}">Выбрать</button>`}
+    </article>`).join("");
+}
+
+const VERDICT_SHORT = { trust: "настоящее", doubt: "сомнения", distrust: "обман", abstain: "не уверены" };
+
+function renderAccount() {
+  const data = store.load();
+  $("acc-name").value = data.name || "";
+  $("acc-trusted").value = data.trusted || "";
+
+  const plan = planById(data.plan);
+  const used = usedToday();
+  $("acc-plan").textContent = plan.name;
+  $("acc-plan-for").textContent = plan.price ? `${plan.price} ₽ ${plan.period} · ${plan.for}` : plan.for;
+  const limited = plan.perDay !== Infinity;
+  $("acc-bar").hidden = !limited;
+  $("acc-bar").classList.toggle("full", limited && used >= plan.perDay);
+  $("acc-bar").firstElementChild.style.width = limited
+    ? `${Math.min(100, (used / plan.perDay) * 100)}%` : "0";
+  $("acc-usage").textContent = !limited ? `Сегодня проверок: ${used}, без лимита`
+    : used <= plan.perDay ? `Сегодня ${used} из ${plan.perDay} проверок`
+    : `Сегодня ${used} проверок — бесплатный лимит ${plan.perDay} исчерпан`;
+
+  const history = data.history || [];
+  const count = (v) => history.filter((h) => h.verdict === v).length;
+  $("acc-stats").innerHTML = `
+    <div><b>${history.length}</b><span class="muted">всего</span></div>
+    <div><b>${count("distrust")}</b><span class="muted">похоже на обман</span></div>
+    <div><b>${count("doubt") + count("abstain")}</b><span class="muted">с сомнением</span></div>`;
+  $("acc-history").innerHTML = history.map((h, i) => `
+    <li><span class="badge ${h.verdict}">${VERDICT_SHORT[h.verdict] || h.verdict}</span>
+      <a href="#/" class="txt" data-history="${i}" style="color:inherit">${escapeHtml(h.text)}</a>
+      <span class="when">${new Date(h.ts).toLocaleString("ru-RU",
+        { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></li>`).join("");
+  $("acc-empty").hidden = history.length > 0;
+  $("acc-clear").hidden = history.length === 0;
+}
+
+// Роутер на хэше: #/ — проверка, #/plans, #/account. Хэш не уходит на
+// сервер, поэтому api/server.py отдаёт всё тем же маршрутом `/`.
+const VIEWS = { "": "check", plans: "plans", account: "account" };
+function route() {
+  const view = VIEWS[location.hash.replace(/^#\/?/, "")] || "check";
+  document.querySelectorAll("[data-view]").forEach((el) => { el.hidden = el.dataset.view !== view; });
+  document.querySelectorAll("nav a").forEach((a) => {
+    const target = VIEWS[a.getAttribute("href").replace(/^#\/?/, "")];
+    if (target === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+  if (view === "plans") renderPlans();
+  if (view === "account") renderAccount();
+  if (view === "check") renderUsage();
+  window.scrollTo(0, 0);
+}
+
+// ===================================================================
+// 6. Запуск и обработчики.
 // ===================================================================
 async function check() {
   const text = $("text").value;
@@ -533,6 +793,7 @@ async function check() {
   try {
     state.lastResult = await api.run(text);
     render(state.lastResult, text);
+    record(state.lastResult, text);
   } catch (err) {
     showError(...explainError(err));
   } finally {
@@ -589,6 +850,37 @@ $("compare-btn").addEventListener("click", compare);
 linkHover($("message"));
 linkHover($("markers"));
 
+$("plans").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-plan]");
+  if (!btn) return;
+  store.save({ plan: btn.dataset.plan });
+  location.hash = "#/account";
+});
+$("acc-change").addEventListener("click", () => { location.hash = "#/plans"; });
+let savedTimer = null;
+for (const [id, key] of [["acc-name", "name"], ["acc-trusted", "trusted"]]) {
+  $(id).addEventListener("input", (e) => {
+    store.save({ [key]: e.target.value.trim() });
+    $("acc-saved").hidden = false;
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(() => { $("acc-saved").hidden = true; }, 1200);
+  });
+}
+// Клик по записи истории — открыть её на странице проверки и проверить снова.
+$("acc-history").addEventListener("click", (e) => {
+  const link = e.target.closest("[data-history]");
+  if (!link) return;
+  e.preventDefault();
+  const item = (store.load().history || [])[Number(link.dataset.history)];
+  if (!item) return;
+  $("text").value = item.text;
+  location.hash = "#/";
+  check();
+});
+$("acc-clear").addEventListener("click", () => { store.save({ history: [] }); renderAccount(); });
+window.addEventListener("hashchange", route);
+
+route();
 boot();
 </script>
 </body>
