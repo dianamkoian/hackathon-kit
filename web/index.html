@@ -554,6 +554,8 @@
         <input type="file" id="audio-file" accept="audio/*" hidden>
         <span class="muted small" id="rec-state"></span>
       </div>
+      <div class="voice" id="shot" hidden><span class="muted">Скриншот:</span> <label class="btn" for="shot-file" style="cursor:pointer">Скриншот</label> <input type="file" id="shot-file" accept="image/*" hidden> <span class="muted small" id="shot-state">или Ctrl+V картинки в поле. Картинка не уходит на сервер: текст распознаётся в браузере</span></div>
+      <script src="/ocr.js" defer></script>
       <div class="row muted small" style="justify-content:space-between">
         <span class="hint-kbd"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> — проверить</span>
         <button class="link" id="clear" type="button">Очистить</button>

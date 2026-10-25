@@ -384,6 +384,11 @@ def slides() -> FileResponse:
     return FileResponse(WEB_DIR / "slides.html")
 
 
+@app.get("/ocr.js")
+def ocr_js() -> FileResponse:
+    return FileResponse(WEB_DIR / "ocr.js", media_type="text/javascript")
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html")
