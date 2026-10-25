@@ -1127,16 +1127,56 @@ NODE["распознавание речи"] = { name: "Распознавани�
 //    попадала в хранилище и не накручивала «уже проверяли N раз».
 // ===================================================================
 const QUIZ_LEN = 10;
-const quiz = { items: [], i: 0, matched: 0, cache: new Map() };
+const quiz = { items: [], i: 0, matched: 0, almost: 0, cache: new Map() };
+
+// Обычные реплики из корпуса чатов и новостей (id d-…/e-… с оценкой trust) нужны
+// метрикам как фон, но в тренировке это не сообщения, которые присылают лично
+// вам: правильный ответ на них выглядит случайным. Обман и спорное оттуда берём.
+const quizFits = (s) => !(/^[de]-/.test(s.id) && s.expected_assessment === "trust");
+
+// Оценка по безопасности решения, а не по точному совпадению слова:
+//   ok     — решение безопасное и совпадает с разметкой по смыслу;
+//   almost — безопасно, но не точно (лишняя осторожность или «сомневаться» вместо «не доверять»);
+//   miss   — опасный промах: доверять обману или не доверять обычному сообщению.
+function quizGrade(answer, truth) {
+  if (answer === truth) return "ok";
+  if (truth === "doubt") return answer === "distrust" ? "ok" : "miss";
+  if (truth === "distrust") return answer === "doubt" ? "almost" : "miss";
+  return answer === "doubt" ? "almost" : "miss";            // truth === "trust"
+}
+const QUIZ_VERDICT = {
+  ok:     "Верно",
+  almost: "Почти",
+  miss:   "Неверно",
+};
+const QUIZ_NOTE = {
+  "doubt:distrust": "Осторожность здесь к месту: по разметке — есть сомнения, проверьте прежде, чем действовать.",
+  "distrust:doubt": "Это обман, но проверка вас бы уберегла. Лучше сразу не доверять.",
+  "trust:doubt":    "Приёмов манипуляции здесь нет — можно отвечать спокойно.",
+};
+
+function shuffle(list) {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+// Раунд собирается поровну из обычных, спорных и обмана: иначе обмана в наборе
+// больше, и раунд «проходится» одной кнопкой «Не доверять».
+const QUIZ_MIX = { trust: 3, doubt: 3, distrust: 4 };
 
 function quizStart() {
-  const pool = [...state.samples];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  const pool = shuffle(state.samples.filter(quizFits));
+  let picked = [];
+  for (const [truth, n] of Object.entries(QUIZ_MIX)) {
+    picked = picked.concat(pool.filter((s) => s.expected_assessment === truth).slice(0, n));
   }
-  quiz.items = pool.slice(0, QUIZ_LEN);
-  quiz.i = 0; quiz.matched = 0;
+  // Если какой-то группы не хватило — добираем случайными, чтобы раунд был полным.
+  for (const s of pool) if (picked.length < QUIZ_LEN && !picked.includes(s)) picked.push(s);
+  quiz.items = shuffle(picked).slice(0, QUIZ_LEN);
+  quiz.i = 0; quiz.matched = 0; quiz.almost = 0;
   $("quiz-play").hidden = false; $("quiz-done").hidden = true;
   quizShow();
 }
@@ -1167,11 +1207,14 @@ async function quizAnswer(btn) {
   $("quiz-next").textContent = quiz.i + 1 < quiz.items.length ? "Дальше" : "Итог";
   const truth = item.expected_assessment;
   if (truth) {
-    const hit = btn.dataset.a === truth;
-    if (hit) quiz.matched++;
+    const grade = quizGrade(btn.dataset.a, truth);
+    if (grade === "ok") quiz.matched++;
+    if (grade === "almost") quiz.almost++;
     const v = VERDICT[truth] || VERDICT.doubt;
-    $("quiz-match").innerHTML = (hit ? "Верно" : "Правильный ответ")
-      + ` — <span class="${v.cls}">${escapeHtml(v.word.toLowerCase())}</span>`;
+    const note = QUIZ_NOTE[`${truth}:${btn.dataset.a}`] || "";
+    $("quiz-match").innerHTML = `${QUIZ_VERDICT[grade]} — по разметке `
+      + `<span class="${v.cls}">${escapeHtml(v.word.toLowerCase())}</span>`
+      + (note ? `<br><span class="muted small" style="font-weight:400">${escapeHtml(note)}</span>` : "");
     $("quiz-evidence").hidden = false;
     $("quiz-reveal").hidden = false;
     return;
@@ -1215,7 +1258,8 @@ async function quizEvidence() {
 function quizNext() {
   if (++quiz.i < quiz.items.length) { quizShow(); window.scrollTo(0, 0); return; }
   $("quiz-play").hidden = true; $("quiz-done").hidden = false;
-  $("quiz-score").textContent = `${quiz.matched} из ${quiz.items.length}`;
+  $("quiz-score").textContent = `${quiz.matched} из ${quiz.items.length}`
+    + (quiz.almost ? ` · ещё ${quiz.almost} почти` : "");
   $("quiz-score-why").textContent = quiz.matched >= quiz.items.length * 0.8
     ? "Вы распознаёте почти все случаи. Покажите тренировку близким."
     : "Мошенники рассчитывают ровно на это — в спешке приёмы не видны. Проверяйте, прежде чем отвечать.";
