@@ -325,6 +325,20 @@
     .verka *, .verka .scan, .reveal, .story-msg mark, .story-markers li, .home-steps li { animation:none !important; transition:none !important; }
   }
 
+  /* технологии и партнёры на главной */
+  .tech { display:grid; grid-template-columns:1fr 1fr; gap:var(--s3); }
+  .tech ul { list-style:none; padding:0; margin:0 0 var(--s3); }
+  .tech li { padding:10px 0; border-top:1px solid var(--line); font-size:15px; }
+  .tech-h { font:500 12px var(--mono); letter-spacing:.08em; text-transform:uppercase; margin:0 0 var(--s1); }
+  .partners { display:grid; grid-template-columns:repeat(2, 1fr); gap:0 var(--s3); }
+  .partner { padding:var(--s2) 0 var(--s3); border-top:1px solid var(--line); }
+  .partner h3 { font:800 22px/1.2 var(--serif); letter-spacing:-.03em; margin:0; }
+  .partner .for { font:500 12px var(--mono); color:var(--muted); margin:4px 0 var(--s1); }
+  .partner p:last-child { margin:0; font-size:15px; }
+  .home-contact { padding:var(--s3) 0 var(--s2); border-top:1px solid var(--line); }
+  .home-contact p { margin:0 0 var(--s1); }
+  .home-contact a { font:800 22px var(--serif); letter-spacing:-.02em; }
+
   /* ---------- узкий экран ---------- */
   @media (max-width:640px) {
     main { padding:var(--s2) 16px var(--s3); }
@@ -344,7 +358,7 @@
     .with-verka, .verdict.with-verka { grid-template-columns:minmax(0, 1fr) 110px; gap:var(--s2); }
     .with-verka h1 { font-size:32px; overflow-wrap:break-word; }
     .verka-say { font-size:11px; }
-    .home-hero, .home-split { grid-template-columns:1fr; }
+    .home-hero, .home-split, .tech, .partners { grid-template-columns:1fr; }
     .home-hero .verka, .home-split .verka { max-width:180px; }
     nav a[aria-current="page"] { padding-right:10px; }
   }
@@ -443,14 +457,90 @@
       </div>
     </section>
 
+    <section class="home-block">
+      <p class="label reveal">Используемые технологии</p>
+      <h2 class="home-h reveal">Что внутри Verka</h2>
+      <div class="tech reveal">
+        <div>
+          <p class="tech-h">Как устроено</p>
+          <ul>
+            <li><b>Каскад моделей</b> — простое решает дешёвая модель, сложное уходит сильной.</li>
+            <li><b>Нулевой уровень без модели</b> — детекторы карт (проверка по Луну), ссылок, просьб
+              кода из СМС, подмены букв латиницей, ИНН с контрольной суммой, формул «срочно переведи».</li>
+            <li><b>Четыре барьера</b> — проверка формата ответа с повтором, сверка цитат с текстом кодом,
+              верификатор на отдельном промпте, отказ ниже порога уверенности.</li>
+            <li><b>Порог отказа</b> — конформная калибровка: доля ошибок среди выданных ответов
+              проверяется на отложенной выборке.</li>
+            <li><b>Контрольный вопрос</b> против дипфейков — хранится только отпечаток ответа.</li>
+          </ul>
+        </div>
+        <div>
+          <p class="tech-h">Модели</p>
+          <ul>
+            <li><b>Qwen2.5 7B</b> локально через Ollama — без интернета, на рабочей ссылке.</li>
+            <li><b>Qwen2.5 через MLX</b> — на Mac с Apple Silicon.</li>
+            <li><b>Claude</b> через Anthropic API — облачный сильный уровень, по желанию.</li>
+            <li><b>Whisper small</b> через MLX — распознавание голосовых на своей машине.</li>
+          </ul>
+          <p class="tech-h">Инфраструктура</p>
+          <ul>
+            <li><b>Python</b>: ядро на стандартной библиотеке, <b>FastAPI</b> + uvicorn — API.</li>
+            <li><b>SQLite</b> — хранилище проверок: «вам прислали не первому».</li>
+            <li><b>Фронт</b> — один HTML без фреймворков и CDN, работает офлайн.</li>
+            <li><b>Cloudflare Tunnel</b> — рабочая ссылка прямо с ноутбука.</li>
+            <li><b>Метрики</b> — <code>python -m evals.run</code> на размеченном наборе.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-block">
+      <p class="label reveal">Партнёры · потенциальные</p>
+      <h2 class="home-h reveal">С кем Verka полезнее всего</h2>
+      <p class="muted small reveal" style="margin:0 0 var(--s3)">Это наши гипотезы: договорённостей и
+        переговоров с этими компаниями нет. Названия — только чтобы показать, где продукт нужен.</p>
+      <div class="partners">
+        <article class="partner reveal"><h3>VK</h3><p class="for">ВКонтакте, VK Мессенджер</p>
+          <p>Мошенники пишут со взломанных страниц друзей. Кнопка «Проверить сообщение» прямо в чате —
+            с уликами, а не блокировкой без объяснений.</p></article>
+        <article class="partner reveal"><h3>Яндекс Телемост</h3><p class="for">звонки и видеовстречи</p>
+          <p>«Начальник» или «родственник» на звонке. Расшифровка речи, разбор приёмов и контрольный
+            вопрос, на который дипфейк не ответит.</p></article>
+        <article class="partner reveal"><h3>Банки</h3><p class="for">Сбер, Т-Банк, ВТБ и другие</p>
+          <p>Пауза перед переводом: «сделайте одно» в момент подтверждения платежа. API <code>/run</code>
+            уже готов к встраиванию.</p></article>
+        <article class="partner reveal"><h3>Операторы связи</h3><p class="for">МТС, Билайн, МегаФон, Т2</p>
+          <p>СМС и звонки с подменой номеров. Объяснение абоненту, почему сообщение подозрительно,
+            дополняет фильтр на стороне сети.</p></article>
+        <article class="partner reveal"><h3>«Перезвони сам»</h3><p class="for">ДИТ Москвы, госпрограммы</p>
+          <p>Бот проекта выдаёт процент вероятности. Наши цитаты и тренажёр показывают, почему —
+            и учат замечать приёмы самому.</p></article>
+        <article class="partner reveal"><h3>Почта и маркетплейсы</h3><p class="for">Почта России, Ozon, Wildberries</p>
+          <p>От их имени массово пишут о «посылках» и «работе на маркетплейсе». Проверка сообщения
+            снижает поток обращений в поддержку.</p></article>
+        <article class="partner reveal"><h3>Антивирусы</h3><p class="for">Лаборатория Касперского и другие</p>
+          <p>Определители номеров и антиспам решают «кто звонит». Verka добавляет объяснимый разбор
+            самого текста.</p></article>
+        <article class="partner reveal"><h3>Финансовая грамотность</h3><p class="for">Банк России, школы и вузы</p>
+          <p>Тренажёр «Распознаёте обман?» на размеченных примерах — готовое занятие на 5 минут.</p></article>
+      </div>
+    </section>
+
     <section class="home-end" id="home-end">
       <p class="label">Ваша очередь</p>
       <h2 class="home-h">Вставьте сообщение — Verka посмотрит</h2>
       <div class="go-bar"><span id="go-bar"></span></div>
       <p class="muted small" id="go-note">Долистайте до конца — откроем <span class="pro">PRO</span>ВЕРКУ</p>
       <a class="btn primary" href="#/check">Проверить сейчас</a>
-      <div id="home-bottom" aria-hidden="true" style="height:1px"></div>
     </section>
+
+    <footer class="home-contact">
+      <p class="label">Контакт</p>
+      <p><a href="mailto:hello@verka.example">hello@verka.example</a></p>
+      <p class="muted small">Адрес вымышленный, для демо: домен <code>.example</code> зарезервирован
+        и никому не принадлежит. Verka — проект команды хакатона, 2026.</p>
+      <div id="home-bottom" aria-hidden="true" style="height:1px"></div>
+    </footer>
   </div>
 
   <!-- ===================== страница: проверка ===================== -->
