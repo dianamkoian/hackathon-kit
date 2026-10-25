@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.pipeline import confidence_floor, run, run_baseline
+from core.deadline import DeadlineRunner
 from core.profile import Profile, clarifying_question, missing_context
 from core.safeword import SafeWord, prompt_for
 from core.store import Store
@@ -47,6 +48,9 @@ _training = [json.loads(l) for l in (ROOT_TRAINING.read_text(encoding='utf-8').s
 _safeword: SafeWord | None = None
 # Личный контекст: только то, что человек ввёл сам, и только для подсказок.
 _profile = Profile()
+# Модели даётся срок и один поток: она считает по очереди, и очередь
+# из пяти запросов не ускоряет ни один, зато растит ожидание.
+_deadline = DeadlineRunner()
 # Сервис обязан подняться, даже если модель настроена неверно. На площадке
 # не будет времени чинить окружение: пусть работают детекторы и честный отказ,
 # а не «сервер не стартовал». Деградация, а не падение.
@@ -140,7 +144,12 @@ def run_endpoint(req: RunRequest) -> dict:
         if _provider is None:
             # Модели нет вовсе — ниже отработает механический разбор.
             raise RuntimeError(f"модель недоступна: {_provider_error}")
-        result = runner(SPEC, {"text": req.text}, _provider)
+        attempt = _deadline.run(lambda: runner(SPEC, {"text": req.text}, _provider))
+        if not attempt.ok:
+            # Занята, не уложилась или упала — для человека это одно и то же:
+            # ответ нужен сейчас. Отдаём то, что видят детекторы.
+            raise RuntimeError(attempt.reason)
+        result = attempt.value
     except RuntimeError as exc:
         # Модели нет или она не знает этот текст. Часть приёмов наблюдаема
         # детекторами, без модели — отвечаем тем, что код реально видит, и
@@ -162,7 +171,7 @@ def run_endpoint(req: RunRequest) -> dict:
         return {
             "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
             "answered": True, "data": fallback, "confidence": None,
-            "reason": fallback["explanation"],
+            "reason": f"{fallback['explanation']} ({exc})",
             "tier_used": "mechanical", "product": present(fallback),
             "safeword": prompt_for(_safeword, fallback.get("markers")),
             "question": (lambda q: q.to_dict() if q else None)(
@@ -306,7 +315,7 @@ def training_check(req: dict) -> dict:
 @app.get("/stats")
 def stats() -> dict:
     """Сколько проверок прошло через систему и чем они кончались."""
-    return _store.stats().to_dict()
+    return {**_store.stats().to_dict(), "model_calls": _deadline.stats}
 
 
 @app.get("/slides")
