@@ -63,7 +63,9 @@ class OllamaProvider:
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": user}],
             "stream": False,
-            "keep_alive": "30m",
+            # Never unload: a cold load takes ~15 s on top of the answer and
+            # blows MODEL_DEADLINE, so the first check after idle went mechanical.
+            "keep_alive": -1,
             "options": {"temperature": 0, "num_predict": max_tokens, "num_ctx": 8192},
         }
         if schema is not None:
