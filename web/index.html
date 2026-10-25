@@ -771,9 +771,10 @@ function humanTime(sec) {
   return sec < 60 ? `≈ ${sec} секунд` : `≈ ${Math.round(sec / 60)} мин`;
 }
 
-let liveTimer = null;
+let liveTimer = null, waitTimer = null;
 function startLoading(first) {
   show("loading");
+  const live = state.backend && state.backend !== "mock";
   setVerka("checking");
   const steps = first ? [first, ...LIVE_STEPS] : LIVE_STEPS;
   $("steps-live").innerHTML = steps.map((n) =>
@@ -783,9 +784,24 @@ function startLoading(first) {
   lis[0].className = "on";
   liveTimer = setInterval(() => {
     if (i < lis.length - 1) { lis[i].className = "done"; lis[++i].className = "on"; }
-  }, 350);
+  }, live ? 4000 : 350);
+  // Живая модель отвечает 10–20 секунд: без счётчика экран выглядит зависшим.
+  let note = $("wait-live");
+  if (!note) {
+    note = document.createElement("p");
+    note.id = "wait-live";
+    $("steps-live").after(note);
+  }
+  note.hidden = !live;
+  if (live) {
+    const t0 = Date.now();
+    const tick = () => { note.textContent = "Обычно 10–20 секунд: модель работает на ноутбуке, без интернета · "
+      + Math.round((Date.now() - t0) / 1000) + " с"; };
+    tick();
+    waitTimer = setInterval(tick, 1000);
+  }
 }
-function stopLoading() { clearInterval(liveTimer); }
+function stopLoading() { clearInterval(liveTimer); clearInterval(waitTimer); }
 
 function showError(title, html) {
   show("error");
