@@ -19,7 +19,8 @@ from core.pipeline import confidence_floor, run, run_baseline
 from core.store import Store
 from core.providers import get_provider
 from domains.authenticity import (
-    SPEC, load_cases, make_mock_handler, mechanical_answer, present,
+    SPEC, decisive_answer, load_cases, make_mock_handler, mechanical_answer,
+    present,
 )
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
@@ -70,6 +71,32 @@ def run_endpoint(req: RunRequest) -> dict:
         raise HTTPException(status_code=422, detail="arm must be cascade or baseline")
     runner = run if req.arm == "cascade" else run_baseline
     seen_before = _store.seen_count(req.text)
+
+    # Нулевой уровень идёт ПЕРВЫМ, а не в запасе. Когда детекторы нашли
+    # признак, у которого нет безобидного прочтения — просьбу кода или чужой
+    # номер карты, — ответ готов за миллисекунды и модель не нужна вовсе.
+    # Это и скорость, и принцип: такие вещи не угадывают, их видят.
+    if req.arm == "cascade":
+        quick = decisive_answer(req.text)
+        if quick is not None:
+            _store.save(
+                text=req.text, status="mechanical",
+                assessment=quick.get("assessment"), markers=quick.get("markers"),
+                confidence=None, backend="mechanical", cost_usd=0.0, latency_ms=0.0,
+            )
+            return {
+                "arm": req.arm, "seen_before": seen_before, "status": "mechanical",
+                "answered": True, "data": quick, "confidence": None,
+                "reason": quick["explanation"], "tier_used": "mechanical",
+                "product": present(quick),
+                "trace": {"task_id": "mechanical", "cost_usd": 0.0,
+                          "model_latency_ms": 0.0, "wall_ms": 0.0, "models_used": [],
+                          "steps": [{"node": "signals", "ok": True,
+                                     "detail": quick["explanation"], "model": None,
+                                     "cost_usd": 0.0, "latency_ms": 0.0,
+                                     "input_tokens": 0, "output_tokens": 0}]},
+            }
+
     try:
         result = runner(SPEC, {"text": req.text}, _provider)
     except RuntimeError as exc:
@@ -165,6 +192,12 @@ async def run_audio(file: UploadFile = File(...)) -> dict:
 def stats() -> dict:
     """Сколько проверок прошло через систему и чем они кончались."""
     return _store.stats().to_dict()
+
+
+@app.get("/slides")
+def slides() -> FileResponse:
+    """Колода для защиты по той же ссылке, что и демо."""
+    return FileResponse(WEB_DIR / "slides.html")
 
 
 @app.get("/")

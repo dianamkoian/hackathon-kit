@@ -336,3 +336,31 @@ def mechanical_answer(text: str) -> dict | None:
         "check_id": check_id,
         "explanation": f"разобрано без модели по наблюдаемым признакам: {names}",
     }
+
+
+def decisive_answer(text: str) -> dict | None:
+    """Ответ, для которого модель не нужна вовсе.
+
+    Отдаётся только когда найден признак без безобидного прочтения: просьба
+    продиктовать код или чужой номер карты в присланном сообщении. Ссылка сама
+    по себе сюда не попадает — ссылки бывают в настоящих письмах, и решать по
+    ней одной нельзя.
+
+    Смысл в том, что такие вещи не угадывают, а видят. Поэтому ответ готов за
+    миллисекунды, а не за десятки секунд, и в нём нечего галлюцинировать.
+    """
+    from core.verify import find_mechanical_signals
+
+    signals = find_mechanical_signals(text)
+    kinds = {s["kind"] for s in signals}
+    if not kinds & set(_DECISIVE):
+        return None
+
+    answer = mechanical_answer(text)
+    if answer is None:
+        return None
+    answer["explanation"] = (
+        "ответ дан без вызова модели: найден признак, у которого нет "
+        f"безобидного прочтения — {', '.join(sorted(kinds & set(_DECISIVE)))}"
+    )
+    return answer

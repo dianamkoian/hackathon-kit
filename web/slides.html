@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Второе мнение — защита</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#111315; --muted:#7a8188; --line:#e6e9ec; --paper:#fff;
+    --accent:#0ABAB5;            /* бледно-бирюзовый: один цвет на всю колоду */
+    --serif:'Playfair Display', Georgia, serif;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink); font:400 18px/1.6 var(--sans);
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  .deck{height:100%; display:flex; align-items:center; justify-content:center; padding:7vh 6vw}
+  .slide{display:none; width:100%; max-width:980px}
+  .slide.on{display:block; animation:in .35s ease}
+  @keyframes in{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+
+  .eyebrow{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+           margin:0 0 28px; font-weight:500}
+  h1{font-family:var(--serif); font-weight:600; font-size:clamp(34px,5.4vw,62px);
+     line-height:1.08; letter-spacing:-.015em; margin:0 0 24px}
+  h2{font-family:var(--serif); font-weight:600; font-size:clamp(27px,3.8vw,44px);
+     line-height:1.14; letter-spacing:-.01em; margin:0 0 28px}
+  p{margin:0 0 18px; max-width:62ch; color:#2b3034}
+  .lead{font-size:clamp(19px,2.2vw,25px); line-height:1.5}
+  .accent{color:var(--accent)}
+  hr{border:none; border-top:1px solid var(--line); margin:30px 0}
+
+  ol.points{list-style:none; counter-reset:n; padding:0; margin:0; max-width:70ch}
+  ol.points li{counter-increment:n; padding:20px 0; border-top:1px solid var(--line)}
+  ol.points li:last-child{border-bottom:1px solid var(--line)}
+  ol.points b{display:block; font-size:20px; font-weight:600; margin-bottom:5px}
+  ol.points b::before{content:counter(n); color:var(--accent); font-family:var(--serif);
+                      margin-right:12px; font-size:18px}
+  ol.points span{color:#555c63; font-size:16.5px}
+
+  table{width:100%; border-collapse:collapse; margin:10px 0 6px; font-size:17px}
+  th,td{text-align:left; padding:15px 10px; border-bottom:1px solid var(--line)}
+  th{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); font-weight:500}
+  td.big{font-family:var(--serif); font-size:34px; line-height:1}
+  td.win{color:var(--accent)}
+
+  pre.flow{font:500 15px/2 var(--sans); color:#2b3034; margin:0; white-space:pre-wrap}
+  pre.flow .s{color:var(--accent); font-weight:600}
+  pre.flow .n{color:var(--muted); font-weight:400}
+
+  .note{color:var(--muted); font-size:15px; max-width:62ch}
+  .bar{position:fixed; left:0; right:0; bottom:0; height:2px; background:var(--line)}
+  .bar i{display:block; height:100%; background:var(--accent); transition:width .3s}
+  .num{position:fixed; right:22px; bottom:18px; font:500 12px var(--sans); color:var(--muted);
+       letter-spacing:.08em}
+  .hint{position:fixed; left:22px; bottom:18px; font-size:12px; color:var(--muted)}
+  @media(max-width:640px){ .deck{padding:5vh 7vw} td.big{font-size:26px} }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <section class="slide on">
+    <p class="eyebrow">Хакатон · «Интернет больше не доказательство»</p>
+    <h1>Второе мнение</h1>
+    <p class="lead">Мы не говорим человеку, чему верить.<br>
+       Мы даём ему способ <span class="accent">убедиться самому</span>.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Проблема</p>
+    <h2>Доказательство подделать дешевле,<br>чем проверить</h2>
+    <p class="lead">Скриншот рисуется за минуту. Голос подделывается за час.
+       Письмо от банка выглядит как письмо от банка.</p>
+    <hr>
+    <p>Почти все решения отвечают одинаково: «фейк» или «не фейк».
+       Такой ответ <b>нельзя проверить</b> — остаётся снова верить на слово,
+       просто теперь машине.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Чем мы не похожи на других</p>
+    <h2>Улики вместо приговора</h2>
+    <ol class="points">
+      <li><b>Показываем, где именно в тексте обман</b>
+          <span>Каждый приём — дословной цитатой из самого сообщения.
+          Цитата сверяется с текстом механически: её либо нет, либо есть.</span></li>
+      <li><b>Даём одну конкретную проверку</b>
+          <span>Не «будьте бдительны», а «перезвоните на старый номер, 30 секунд».
+          В каталоге 17 проверок: действие, время, почему работает.</span></li>
+      <li><b>Умеем сказать «не знаю»</b>
+          <span>Порог отказа не выдуман — он откалиброван под обещание
+          «не больше N% ошибок среди выданных ответов».</span></li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Как устроено</p>
+    <h2>Самый дешёвый уровень —<br><span class="accent">отсутствие модели</span></h2>
+    <pre class="flow"><span class="s">ДЕТЕКТОРЫ</span>        ссылки, карты, просьбы кода, подмена букв
+                 <span class="n">бесплатно · мгновенно · не галлюцинируют</span>
+      ↓
+<span class="s">ДЕШЁВАЯ МОДЕЛЬ</span>   простые случаи
+      ↓
+<span class="s">СИЛЬНАЯ МОДЕЛЬ</span>   только когда дешёвая не справилась
+      ↓
+<span class="s">ПРОВЕРКА</span>         цитаты сверяются с текстом кодом
+      ↓
+<span class="s">ОТВЕТ или ОТКАЗ</span></pre>
+    <hr>
+    <p class="note">Часть приёмов не нужно угадывать — их видно. Ссылка в тексте
+       либо есть, либо нет. На это не нужна нейросеть, нужен детектор.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Числа</p>
+    <h2>Главное — не точность,<br>а сколько раз мы ошиблись вслух</h2>
+    <table>
+      <tr><th>&nbsp;</th><th>обычный подход</th><th>мы</th></tr>
+      <tr><td>неверных ответов выдано</td><td class="big">2</td><td class="big win">0</td></tr>
+      <tr><td>верных там, где ответили</td><td class="big">94%</td><td class="big win">100%</td></tr>
+      <tr><td>стоимость проверки</td><td class="big">×1</td><td class="big win">×0,45</td></tr>
+    </table>
+    <p class="note">35 размеченных примеров, из них 5 — настоящие письма, которые
+       получили мы сами. Цена честности: в двух случаях из тридцати пяти система
+       отказалась отвечать.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Детекторы на объёме</p>
+    <h2>40 000 настоящих сообщений,<br>6 секунд, <span class="accent">ноль вызовов модели</span></h2>
+    <table>
+      <tr><th>подмена русских букв латиницей</th><th>в спаме</th><th>в обычных</th></tr>
+      <tr><td>«Здpaвcтвyйтe» вместо «Здравствуйте»</td>
+          <td class="big win">58,6%</td><td class="big">0,4%</td></tr>
+    </table>
+    <p class="lead" style="margin-top:22px">Встречается в спаме
+       <span class="accent">в 130 раз чаще</span>. Человек этого не замечает — код видит.</p>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Где ломается</p>
+    <h2>Называем сами</h2>
+    <ol class="points">
+      <li><b>Мы не проверяем факты</b>
+          <span>Только приёмы в самом тексте. Утверждение о мире мы не
+          подтверждаем и не опровергаем.</span></li>
+      <li><b>Узкое место — не разбор, а проверка разбора</b>
+          <span>Мы меняли её четыре раза за сегодня и каждый раз мерили.
+          В пограничных случаях она ошибается, поэтому мы молчим чаще, чем хотелось бы.</span></li>
+      <li><b>Размеченных примеров мало</b>
+          <span>35 вместо 120. Поэтому обещаем «не больше 30% ошибок», а не 5%:
+          говорим то число, которое вправе сказать.</span></li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <p class="eyebrow">Команда</p>
+    <h2>Шесть человек<br>и шесть ИИ-агентов в одном репозитории</h2>
+    <p class="lead">Агенты не слышат разговоров — они читают файлы. Поэтому
+       у каждого своя зона файлов, а задачи агенты ставят друг другу
+       <span class="accent">файлами команд</span>.</p>
+    <hr>
+    <p class="note">В истории видно: команда от одного агента к другому, ответ,
+       закрытие. Мы не просто пользовались ИИ — мы выстроили процесс, в котором
+       шесть агентов не мешают друг другу.</p>
+  </section>
+
+  <section class="slide">
+    <h1>Мы не говорим,<br>чему верить.</h1>
+    <p class="lead">Мы показываем, <span class="accent">где обман</span>,
+       и что сделать за тридцать секунд.</p>
+  </section>
+
+</div>
+<div class="bar"><i id="bar"></i></div>
+<div class="num" id="num"></div>
+<div class="hint">← → пробел</div>
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  let i = 0;
+  function show(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    document.getElementById('bar').style.width = ((i + 1) / slides.length * 100) + '%';
+    document.getElementById('num').textContent = (i + 1) + ' / ' + slides.length;
+  }
+  addEventListener('keydown', e => {
+    if (['ArrowRight',' ','PageDown','Enter'].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    if (['ArrowLeft','PageUp'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  addEventListener('click', e => show(e.clientX < innerWidth * 0.25 ? i - 1 : i + 1));
+  show(0);
+</script>
+</body>
+</html>
