@@ -494,6 +494,38 @@ _DETECTORS = (find_card_numbers, find_links, find_secret_requests, find_phone_nu
               find_mixed_script_words, find_invalid_inns)
 
 
+# Словесные признаки. Это по-прежнему наблюдение, а не догадка: фраза
+# «переведи 18000» написана в тексте, её видно и можно процитировать по
+# позиции. Детекторы выше ловят форму (карта, ссылка), эти — формулировку.
+# Добавлены после замера: без них путь без модели считал чистым сообщение
+# «мам, это я, новый номер, срочно переведи 18000».
+_MONEY_PHRASE = re.compile(
+    r"(?:перевед[иь]|скин[ьи]|отправ[ьи]|закин[ьи]|одолж[иь]|займ[иы])\w*"
+    r"[^.!?\n]{0,40}?\d[\d\s]{2,}",
+    re.IGNORECASE)
+_URGENCY_PHRASE = re.compile(
+    r"(?:срочно|прямо сейчас|немедленно|как можно быстрее|в течение часа|"
+    r"иначе\s+(?:счёт|счет|аккаунт|карта|доступ)\w*\s+(?:будет\s+)?"
+    r"(?:заблокир|закр|удал)\w*)",
+    re.IGNORECASE)
+_NEW_CONTACT_PHRASE = re.compile(
+    r"(?:у меня новый номер|это мой новый номер|пишу с (?:другого|чужого|нового) "
+    r"(?:номера|телефона)|новый аккаунт|телефон (?:разбился|украли|потерял)\w*)",
+    re.IGNORECASE)
+
+
+def _phrase_signals(text: str) -> list[dict[str, Any]]:
+    """Находит формулировки, которые видно глазом, и цитирует их по позиции."""
+    found: list[dict[str, Any]] = []
+    for kind, pattern in (("money_phrase", _MONEY_PHRASE),
+                          ("urgency_phrase", _URGENCY_PHRASE),
+                          ("new_contact_phrase", _NEW_CONTACT_PHRASE)):
+        for m in pattern.finditer(text):
+            found.append({"kind": kind, "quote": m.group(0).strip(),
+                          "start": m.start(), "end": m.end()})
+    return found
+
+
 def find_mechanical_signals(source_text: str) -> list[dict[str, Any]]:
     """All detectors at once, sorted by position.
 
@@ -502,7 +534,7 @@ def find_mechanical_signals(source_text: str) -> list[dict[str, Any]]:
     invalid_inn. Extra keys: `masked` (card), `domain` (link), `reason` (ИНН).
     """
     signals = [signal for detect in _DETECTORS for signal in detect(source_text)]
-    return sorted(signals, key=lambda signal: (signal["start"], signal["kind"]))
+    return _phrase_signals(source_text) + sorted(signals, key=lambda signal: (signal["start"], signal["kind"]))
 
 
 def check_signals(

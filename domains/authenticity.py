@@ -292,6 +292,9 @@ _SIGNAL_TO_MARKER = {
     "secret_request": "code_request",
     "link": "external_link",
     "mixed_script": "obfuscation",
+    "money_phrase": "money_request",
+    "urgency_phrase": "urgency",
+    "new_contact_phrase": "new_contact",
 }
 
 # Сигналы, каждый из которых сам по себе — основание не доверять сообщению.
@@ -327,12 +330,17 @@ def mechanical_answer(text: str) -> dict | None:
         return None
 
     decisive = kinds & set(_DECISIVE)
-    assessment = "distrust" if decisive else "doubt"
+    # Сочетание «просьба денег + новый контакт» решающее, хотя каждый
+    # признак по отдельности встречается и в честных сообщениях.
+    combo = {"money_phrase", "new_contact_phrase"} <= kinds
+    assessment = "distrust" if (decisive or combo) else "doubt"
 
     if "secret_request" in kinds:
         check_id = "C11"           # просят код из СМС, пароль, данные карты
     elif "card_number" in kinds:
         check_id = "C01"           # просьба о деньгах — перезвонить на старый номер
+    elif {"money_phrase", "new_contact_phrase"} & kinds:
+        check_id = "C01"           # просьба денег с нового контакта
     elif "link" in kinds:
         check_id = "C04"           # ссылка — открыть сервис вручную
     else:
