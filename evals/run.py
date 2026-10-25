@@ -24,7 +24,7 @@ from pathlib import Path
 
 from core.pipeline import run, run_baseline
 from core.providers import get_provider
-from domains.commitments import SPEC, load_cases, make_mock_handler
+from domains.authenticity import SPEC, load_cases, make_mock_handler
 
 REPORT_DIR = Path(__file__).resolve().parent
 

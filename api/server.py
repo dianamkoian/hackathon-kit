@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from core.pipeline import confidence_floor, run, run_baseline
 from core.providers import get_provider
-from domains.commitments import SPEC, load_cases, make_mock_handler
+from domains.authenticity import SPEC, load_cases, make_mock_handler, present
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
@@ -67,7 +67,7 @@ def run_endpoint(req: RunRequest) -> dict:
     except RuntimeError as exc:
         # The mock backend raises on unseen input; say so plainly instead of 500.
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"arm": req.arm, **result.to_dict()}
+    return {"arm": req.arm, **result.to_dict(), "product": present(result.data)}
 
 
 @app.get("/")
