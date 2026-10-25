@@ -614,6 +614,7 @@
         <p class="label">Сделайте одно</p>
         <p class="act" id="check-act"></p>
         <p class="why" id="check-why"></p>
+        <div class="row" id="check-search" hidden></div>
         <p class="time" id="check-time"></p>
         <div class="after">
           <p class="label" style="margin-bottom:var(--s1)">Что получилось?</p>
@@ -1009,6 +1010,12 @@ function renderCheck(check) {
   $("check-why").textContent = check.why || "";
   $("check-time").textContent = humanTime(check.time_sec);
   $("check-time").hidden = !check.time_sec;
+  // Кнопки поиска (пока только у C20, «новость без источника»): ищет сам человек
+  // на своём устройстве, Verka ничего не утверждает о правдивости. Только https.
+  const links = (check.search || []).filter((s) => /^https:\/\//.test(s.url || ""));
+  $("check-search").innerHTML = links.map((s) =>
+    `<a class="btn" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join("");
+  $("check-search").hidden = !links.length;
   $("outcome").hidden = true;
   $("choices").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false"));
 }
