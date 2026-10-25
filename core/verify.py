@@ -68,15 +68,50 @@ def check_quotes(data: Any, source_text: str, fields: tuple[str, ...]) -> list[s
     return problems
 
 
+# Порядок полей здесь — часть метода, а не оформление. Модель генерирует JSON
+# слева направо, поэтому перечисление найденного идёт ДО вердикта: пока она не
+# выписала, что видит в источнике, ей нечем заметить пропуск.
 _VERIFIER_SCHEMA = {
     "type": "object",
-    "required": ["verdict", "confidence", "reason"],
+    "required": ["found_in_source", "missing_from_answer", "verdict", "confidence", "reason"],
     "properties": {
+        "found_in_source": {"type": "array", "items": {"type": "string"}},
+        "missing_from_answer": {"type": "array", "items": {"type": "string"}},
         "verdict": {"type": "string", "enum": ["pass", "fail"]},
         "confidence": {"type": "number"},
         "reason": {"type": "string"},
     },
 }
+
+
+def _real_omissions(claimed, spec, data) -> list[str]:
+    """Отсеивает мнимые пропуски.
+
+    Решающая модель часто цитирует шире, чем проверяющая: «скрипт готов, я
+    запущу его завтра» против «я запущу его завтра». Проверяющая сверяет
+    строки и объявляет своё короткое цитирование пропущенным, хотя
+    обязательство в ответе есть.
+
+    Сверку делает код, а не модель: пересекается ли заявленный пропуск хоть
+    с одной цитатой в ответе. Перечислять модель умеет, аккуратно сверять
+    строки — нет.
+    """
+    present = [
+        _normalize(value)
+        for field in spec.quote_fields
+        for _, value in resolve_path(data, field)
+        if isinstance(value, str) and value.strip()
+    ]
+
+    real: list[str] = []
+    for item in claimed:
+        text = _normalize(str(item))
+        if not text:
+            continue
+        if any(text in quote or quote in text for quote in present):
+            continue  # обязательство в ответе есть, разошлись только границы цитаты
+        real.append(str(item))
+    return real
 
 
 def verify_with_model(provider, *, spec, fields: dict, data: Any, tier: str, trace):
@@ -86,9 +121,15 @@ def verify_with_model(provider, *, spec, fields: dict, data: Any, tier: str, tra
     user = (
         f"{spec.render_user(fields)}\n\n"
         f"A candidate answer was produced:\n{json.dumps(data, ensure_ascii=False, indent=2)}\n\n"
-        "Judge it. `confidence` is your probability from 0 to 1 that this answer "
-        "is correct and complete. Be strict: an answer that is plausible but "
-        "unsupported by the input is a fail."
+        "Review it in this order, and do not skip a step:\n"
+        "1. `found_in_source`: quote EVERY statement in the input above that "
+        "qualifies, working through the input from start to end. Do this before "
+        "you look at the candidate answer again.\n"
+        "2. `missing_from_answer`: list the ones from step 1 that the candidate "
+        "answer does not contain. An answer that stops after the first item is "
+        "the most common failure — check the end of the input specifically.\n"
+        "3. `verdict`, `confidence` (0 to 1), `reason`.\n"
+        "Be strict: plausible but unsupported is a fail."
     )
     verdict, _ = ask_structured(
         provider,
@@ -105,4 +146,21 @@ def verify_with_model(provider, *, spec, fields: dict, data: Any, tier: str, tra
     # A verifier that returns 1.0 on everything is a broken verifier; clamp only
     # the range, never the value, so miscalibration stays visible in the eval.
     confidence = min(max(confidence, 0.0), 1.0)
-    return verdict["verdict"] == "pass", confidence, verdict["reason"]
+
+    passed = verdict["verdict"] == "pass"
+    reason = verdict["reason"]
+
+    # The consequence of an omission is enforced in code, not left to the model.
+    # Measured: a verifier asked only for a verdict calls an answer "an exact
+    # match" while a whole item is missing from it. Asking it to enumerate what
+    # is absent is what makes the omission visible; refusing to pass a non-empty
+    # list is what makes it matter.
+    missing = _real_omissions(verdict.get("missing_from_answer", []), spec, data)
+    if missing:
+        passed = False
+        confidence = min(confidence, 0.3)
+        reason = f"пропущено: {'; '.join(str(m)[:60] for m in missing[:3])}"
+
+    trace.add("recall", not missing,
+              detail="ничего не пропущено" if not missing else f"пропусков: {len(missing)}")
+    return passed, confidence, reason

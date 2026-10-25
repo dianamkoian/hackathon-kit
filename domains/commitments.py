@@ -185,17 +185,32 @@ def make_mock_handler(cases: list[dict]):
         marker = "A candidate answer was produced:"
         candidate = extract_json(user[user.index(marker) + len(marker):])
         call_number = verifier_calls[case["id"]] = verifier_calls.get(case["id"], 0) + 1
+        # Пропуск считаем по цитатам, а не по всей записи: неверно названный
+        # исполнитель — это ошибка, но не пропуск, и смешивать их нельзя.
+        expected_quotes = [c["quote"] for c in case["expected"]["commitments"]]
+        answer_quotes = {
+            _norm(c.get("quote", ""))
+            for c in (candidate or {}).get("commitments", [])
+            if isinstance(c, dict)
+        }
+        missing = [q for q in expected_quotes if _norm(q) not in answer_quotes]
+        base = {"found_in_source": expected_quotes, "missing_from_answer": missing}
+
         override = case.get("mock_verifier", {}).get(str(call_number))
         if override == "pass":
-            return json.dumps({"verdict": "pass", "confidence": 0.72,
-                               "reason": "reads as supported by the transcript"})
+            return json.dumps({**base, "verdict": "pass", "confidence": 0.72,
+                               "reason": "reads as supported by the transcript"},
+                              ensure_ascii=False)
         if override == "fail":
-            return json.dumps({"verdict": "fail", "confidence": 0.41,
-                               "reason": "cannot confirm the deadline from the transcript"})
+            return json.dumps({**base, "verdict": "fail", "confidence": 0.41,
+                               "reason": "cannot confirm the deadline from the transcript"},
+                              ensure_ascii=False)
         if grade(case["expected"], candidate):
-            return json.dumps({"verdict": "pass", "confidence": 0.91,
-                               "reason": "every commitment is stated and quoted"})
-        return json.dumps({"verdict": "fail", "confidence": 0.28,
-                           "reason": "a listed commitment is not supported by the transcript"})
+            return json.dumps({**base, "verdict": "pass", "confidence": 0.91,
+                               "reason": "every commitment is stated and quoted"},
+                              ensure_ascii=False)
+        return json.dumps({**base, "verdict": "fail", "confidence": 0.28,
+                           "reason": "a listed commitment is not supported by the transcript"},
+                          ensure_ascii=False)
 
     return handler
