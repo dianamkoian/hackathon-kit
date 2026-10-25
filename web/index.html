@@ -277,6 +277,16 @@
   @keyframes scan2 { 0%,100% { transform:rotate(-3deg); } 50% { transform:rotate(3deg); } }
   @keyframes look { 0%,100% { transform:translateX(-5px); } 50% { transform:translateX(5px); } }
   @keyframes sweep { 0% { transform:translateY(0); } 100% { transform:translateY(128px); } }
+  /* v3: пиксельная — движения ступеньками по одному пикселю, как в старых играх */
+  .verka-svg.v3 { image-rendering:pixelated; }
+  .verka .p-head, .verka .p-wave { transform-box:view-box; transform-origin:25px 28px; }
+  .verka[data-state="checking"] .p-head { animation:pscan 1.2s steps(1) infinite; }
+  .verka .p-look { animation:pscan .8s steps(1) infinite; }
+  .verka .p-bob { animation:pbob .9s steps(1) infinite; }
+  .verka .p-wave { animation:pwave 1s steps(1) infinite; }
+  @keyframes pscan { 0% { transform:translateX(-1px); } 50% { transform:translateX(1px); } }
+  @keyframes pbob { 0% { transform:translateY(0); } 50% { transform:translateY(-1px); } }
+  @keyframes pwave { 0% { transform:rotate(-3deg); } 50% { transform:rotate(3deg); } }
   .with-verka { display:grid; grid-template-columns:minmax(0, 1fr) 200px; gap:var(--s3); align-items:center; }
   .verdict.with-verka { grid-template-columns:1fr 170px; }
 
@@ -1352,9 +1362,110 @@ const VERKA_SVG_V2 = `
         stroke="${INK}" stroke-width="1.5" font-family="ui-monospace, Consolas, monospace">?</text>
 </svg>`;
 
-// Какую Verka показывать: "v2" — голова и плечи, "v1" — прежняя мультяшная.
-const VERKA_STYLE = "v2";
-const VERKA_SVG = VERKA_STYLE === "v1" ? VERKA_SVG_V1 : VERKA_SVG_V2;
+// v3 — пиксельная голова по мотивам v1: без туловища, рук и гарнитуры,
+// крупные мультяшные глаза. Рисуется по сетке: каждая буква карты — пиксель.
+//   K — волосы (цвет темы), T — бирюза, S — кожа, s — тень кожи, . — пусто.
+const PX = { K: "var(--verka-hair)", T: TIFFANY, S: SKIN, s: "#e9c4a6", P: "#f1a395", W: "#fff", I: INK };
+const VERKA_HEAD = [
+  "..........KKKKKKKKKKKK..........",
+  "........KKKKKKKKKKKKKKKK........",
+  "......KKKKKKKKKKKKKKKKKKKK......",
+  ".....KKKKKKKKKKKKKKKKKKKKKK.....",
+  "....KKKKKKTTKKKKKKKKKKKKKKKK....",
+  "...KKKKKKTTKKKKKKKKKKKKKKKKKK...",
+  "...KKKKKTTKKKKKKKKKKKKKKKKKKK...",
+  "..KKKKKTTKKKKKKKKKKKKKKKKKKKKK..",
+  "..KKKKTTKKKSSSKKKKKKSSSSKKKKKK..",
+  "..KKKKKKKSSSSSSKKKSSSSSSSKKKKK..",
+  "..KKKKKSSSSSSSSSSSSSSSSSSSKKKK..",
+  "..KKKKSSSSSSSSSSSSSSSSSSSSSKKK..",
+  "..KKKSSSSSSSSSSSSSSSSSSSSSSSKK..",
+  "..KKKSSSSSSSSSSSSSSSSSSSSSSSKK..",
+  "..KKKSSSSSSSSSSSSSSSSSSSSSSSKK..",
+  "..KKKSSSSSSSSSSSSSSSSSSSSSSSKK..",
+  "..KKKSSSSSSSSSSSSSSSSSSSSSSSKK..",
+  "..KKKSSSSSSSSSSSSSSSSSSSSSSSKK..",
+  "..KKKSSSSSSSSSSSSSSSSSSSSSSSKK..",
+  "..KKKKSSSSSSSSSSSSSSSSSSSSSKKK..",
+  "..KKKKSSSSSSSSSSSSSSSSSSSSSKKK..",
+  "..KKKKKSSSSSSSSSSSSSSSSSSSKKKK..",
+  "..KKKKKKSSSSSSSSSSSSSSSSSKKKKK..",
+  "..KKKKKK.SSSSSSSSSSSSSSS.KKKKK..",
+  "..KKKKK....sSSSSSSSSSs....KKKK..",
+  "...KKK........ssss.........KKK..",
+  "..............ssss..............",
+  ".............TTTTTT.............",
+];
+// Карта → прямоугольники: соседние пиксели одного цвета в строке склеиваются.
+function pixels(map, dx = 0, dy = 0) {
+  let out = "";
+  map.forEach((row, y) => {
+    for (let x = 0; x < row.length;) {
+      const c = row[x];
+      let w = 1;
+      while (row[x + w] === c) w++;
+      if (PX[c]) out += `<rect x="${x + dx}" y="${y + dy}" width="${w}" height="1" style="fill:${PX[c]}"/>`;
+      x += w;
+    }
+  });
+  return out;
+}
+const px = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" style="fill:${PX[c] || c}"/>`;
+// Мультяшный глаз 4×5: контур, бирюзовая радужка, блик.
+const EYE = [".II.", "IWTI", "ITTI", "ITTI", ".II."];
+const VERKA_SVG_V3 = `
+<svg class="verka-svg v3" viewBox="-4 -11 42 41" shape-rendering="crispEdges" aria-hidden="true">
+  <rect x="-3" y="-2" width="40" height="31" rx="4" style="fill:var(--verka-bg)"/>
+  <g class="s s-distrust"><g class="p-wave">
+    ${px(25, -2, 1, 24, "#8a6a44")}
+    ${px(-3, -10, 40, 9, "I")}${px(-2, -9, 38, 7, "#fbf8f2")}
+    <text x="17" y="-4" text-anchor="middle" font-size="3.9" font-weight="800" fill="#b23a2e"
+          font-family="ui-monospace, Consolas, monospace" shape-rendering="auto">Галя, отмена!</text>
+  </g></g>
+  <g class="p-head">
+    ${pixels(VERKA_HEAD)}
+    ${px(7, 19, 2, 1, "P")}${px(23, 19, 2, 1, "P")}
+    <g class="s s-idle"><g class="eyes">${pixels(EYE, 9, 13)}${pixels(EYE, 19, 13)}</g>
+      ${px(9, 11, 3, 1, "I")}${px(20, 11, 3, 1, "I")}
+      ${px(14, 20, 1, 1, "I")}${px(17, 20, 1, 1, "I")}${px(15, 21, 2, 1, "I")}</g>
+    <g class="s s-checking">
+      ${px(7, 12, 7, 7, "I")}${px(18, 12, 7, 7, "I")}${px(14, 14, 4, 2, "I")}
+      ${px(8, 13, 5, 5, "T")}${px(19, 13, 5, 5, "T")}
+      <g class="p-look">${px(9, 14, 1, 1, "W")}${px(20, 14, 1, 1, "W")}</g>
+      ${px(15, 21, 2, 1, "I")}</g>
+    <g class="s s-trust">
+      ${px(10, 14, 2, 1, "I")}${px(9, 15, 1, 1, "I")}${px(12, 15, 1, 1, "I")}
+      ${px(20, 14, 2, 1, "I")}${px(19, 15, 1, 1, "I")}${px(22, 15, 1, 1, "I")}
+      ${px(13, 19, 6, 1, "I")}${px(13, 20, 1, 1, "I")}${px(18, 20, 1, 1, "I")}
+      ${px(14, 20, 4, 1, "P")}${px(14, 21, 4, 1, "I")}</g>
+    <g class="s s-distrust">
+      ${px(9, 11, 2, 1, "I")}${px(11, 12, 2, 1, "I")}${px(21, 11, 2, 1, "I")}${px(19, 12, 2, 1, "I")}
+      ${pixels([".II.", "ITTI", ".II."], 9, 14)}${pixels([".II.", "ITTI", ".II."], 19, 14)}
+      ${px(14, 19, 4, 3, "I")}${px(15, 20, 2, 1, "P")}</g>
+    <g class="s s-doubt"><g class="eyes">${pixels(EYE, 9, 13)}${pixels(EYE, 19, 13)}</g>
+      ${px(9, 11, 3, 1, "I")}${px(20, 10, 3, 1, "I")}
+      ${px(14, 20, 2, 1, "I")}${px(16, 21, 2, 1, "I")}</g>
+  </g>
+  <g class="s s-trust"><g class="p-bob">
+    ${px(28, 13, 4, 7, "I")}${px(28, 18, 8, 8, "I")}
+    ${px(29, 14, 2, 5, "S")}${px(29, 19, 6, 6, "S")}
+    ${px(31, 21, 4, 1, "I")}${px(31, 23, 4, 1, "I")}${px(35, 19, 1, 6, "T")}
+  </g></g>
+  <g class="s s-doubt"><g class="p-bob">${pixels([
+    ".TTT.",
+    "T...T",
+    "....T",
+    "...T.",
+    "..T..",
+    ".....",
+    "..T..",
+  ], 28, 1)}</g></g>
+</svg>`;
+
+// Какую Verka показывать: "v3" — пиксельная голова (сейчас), "v2" — голова и
+// плечи минималистично, "v1" — первая мультяшная в полный рост.
+const VERKA_STYLE = "v3";
+const VERKA_SVG = { v1: VERKA_SVG_V1, v2: VERKA_SVG_V2, v3: VERKA_SVG_V3 }[VERKA_STYLE];
 
 const SAY = {
   idle:     "Пришлите сообщение — посмотрю.",
