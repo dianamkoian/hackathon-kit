@@ -60,8 +60,23 @@ def label(text: str, is_spam: bool) -> dict:
     # Оценка: метка корпуса говорит, спам это или нет; признаки говорят,
     # насколько уверенно. Спам без единого признака — честное «сомневаюсь»,
     # а не «обман»: мы не видим, за что его таким считать.
+    # Объявление о работе с проверяемыми деталями — телефоном, именем, адресом,
+    # названием объекта — это ещё не обман: так пишут и настоящие бригады.
+    # Расхождение с ручной разметкой было именно здесь: правила ставили
+    # «обман» там, где человек ставил «сомневаюсь».
+    verifiable = bool(re.search(r"(?:\+?7|8)\d{9,10}|\b\d{3}[\s-]?\d{2}[\s-]?\d{2}\b", text)) \
+        or bool(re.search(r"\b(?:ооо|ип|инн)\b", text, re.IGNORECASE))
+    obfuscated = "mixed_script" in kinds
+
     if is_spam:
-        assessment = "distrust" if (markers or job) else "doubt"
+        if obfuscated or kinds & {"secret_request", "card_number"}:
+            assessment = "distrust"          # прячут слова или просят лишнее
+        elif job and verifiable:
+            assessment = "doubt"             # проверяемое объявление — сомнение, не приговор
+        elif markers or job:
+            assessment = "distrust"
+        else:
+            assessment = "doubt"
     else:
         assessment = "doubt" if markers else "trust"
 
@@ -106,6 +121,16 @@ def check_agreement() -> int:
     print(f"сравнение с ручной разметкой на {n} примерах:")
     print(f"  оценка совпала:   {agree}/{n} = {agree/n:.0%}")
     print(f"  проверка совпала: {same_check}/{n} = {same_check/n:.0%}")
+    # Опасные расхождения важнее общего процента: ошибка «обман вместо
+    # сомнения» стоит человеку тридцати секунд, ошибка «доверяй вместо
+    # обмана» — денег. Разница в тысячи раз, и мерить их одним числом нельзя.
+    dangerous = sum(k for (want, got), k in confusion.items()
+                    if {want, got} == {"trust", "distrust"})
+    print(f"  опасных расхождений (доверять <-> обман): {dangerous}")
+    if dangerous == 0:
+        print("    ни разу правила не назвали безопасным то, что человек счёл обманом,")
+        print("    и наоборот. Расходимся только в силе оценки, а не в сути.")
+
     print("\n  где расходимся (человек -> правила):")
     for (want, got), k in sorted(confusion.items(), key=lambda kv: -kv[1]):
         mark = "  " if want == got else "≠ "
