@@ -12,6 +12,8 @@ mostly reproduces the original error.
 from __future__ import annotations
 
 import re
+import unicodedata
+from collections import Counter
 from typing import Any
 
 from .structured import ask_structured
@@ -217,16 +219,25 @@ def verify_with_model(provider, *, spec, fields: dict, data: Any, tier: str, tra
     return passed, confidence, reason
 
 
-# Observable surface features, not a fraud verdict. The domain owner decides
-# how these are used; their presence must not automatically block a message.
-_URL = re.compile(r"(?<!\w)(?:https?://|www\.)[^\s<>\"']+", re.IGNORECASE)
-_SMS_REQUEST = re.compile(
-    r"\b(?:пришли(?:те)?|сообщи(?:те)?|отправь(?:те)?|назови(?:те)?|"
-    r"продиктуй(?:те)?|перешли(?:те)?|скинь(?:те)?)\b"
-    r"[^.!?;\n]{0,60}?\bкод(?:а|ы)?\b[^.!?;\n]{0,30}?\b(?:смс|sms)\b",
-    re.IGNORECASE,
-)
-_NUMBER_RUN = re.compile(r"(?<!\w)[0-9](?:[0-9 \u00a0-]*[0-9])?(?!\w)")
+# ------------------------------------------------------------------ signals
+#
+# Observable surface features, not a fraud verdict. Every detector returns exact
+# source slices with offsets, so the UI can highlight them; no model, no network.
+# The domain owner decides how signals are used: `check_signals` fails only on
+# the kinds the caller maps to an answer type, everything else stays a signal.
+# Unsupported or obfuscated spellings may be missed; no match is not safety.
+
+_SEP = "[  -]"
+_MASK = "[*•xXхХ]"
+_TRAILING = ".,!?;:)]}»"
+
+
+def _signal(text: str, kind: str, start: int, end: int, **extra: Any) -> dict[str, Any]:
+    return {"kind": kind, "quote": text[start:end], "start": start, "end": end, **extra}
+
+
+def _overlaps(start: int, end: int, taken: list[dict[str, Any]]) -> bool:
+    return any(s["start"] < end and start < s["end"] for s in taken)
 
 
 def _luhn_valid(digits: str) -> bool:
@@ -241,41 +252,328 @@ def _luhn_valid(digits: str) -> bool:
     return total % 10 == 0
 
 
-def find_mechanical_signals(source_text: str) -> list[dict[str, Any]]:
-    """Find URL, explicit Russian SMS-code request and card-number candidates.
+_CARD_GROUPED = re.compile(
+    rf"(?<![\w*•])(?<!\d{_SEP})\d{{4}}(?:{_SEP}(?:\d{{4}}|{_MASK}{{4}})){{1,2}}"
+    rf"{_SEP}\d{{4}}(?![\w*•])(?!{_SEP}\d)"
+)
+_CARD_SOLID = re.compile(rf"(?<![\w*•])\d{{4,6}}(?:\d{{6,8}}|{_MASK}{{4,8}})\d{{4}}(?![\w*•])")
 
-    Every result contains kind, quote, start and end (Python string offsets).
-    Quotes are exact source slices; there are no network or model calls.
-    Card candidates require 13-19 ASCII digits, a Luhn checksum and a nearby
-    Russian card mention; this does NOT establish that a card exists.
-    URL reputation, quoted speech, intent and authenticity are not determined.
-    Unsupported/obfuscated spellings may be missed; no matches is not safety.
+
+def find_card_numbers(text: str) -> list[dict[str, Any]]:
+    """Payment card numbers: 16 digits grouped by four or solid, or masked.
+
+    `2202 2063 1234 5676`, `2202-2063-1234-5676`, `2202 **** 4411`,
+    `220220******4411`. A solid run of 16 digits must also pass the Luhn
+    checksum, otherwise every long order number would count. Masked numbers
+    carry `masked: True`. A last-four mention like `*4411` is not matched:
+    banks print those in ordinary notifications.
     """
-    signals: list[dict[str, Any]] = []
-
-    def add(kind: str, start: int, end: int) -> None:
-        signals.append({"kind": kind, "quote": source_text[start:end],
-                        "start": start, "end": end})
-
-    for match in _URL.finditer(source_text):
-        quote = match.group().rstrip(".,!?;:)]}»")
-        # A bare scheme is not a usable URL signal.
-        if re.fullmatch(r"(?:https?://|www\.)", quote, re.IGNORECASE):
+    found: list[dict[str, Any]] = []
+    for match in _CARD_GROUPED.finditer(text):
+        masked = bool(re.search(_MASK, match.group()))
+        if not masked and len(re.split(_SEP, match.group())) != 4:
+            continue  # three groups of digits is not a card number
+        found.append(_signal(text, "card_number", match.start(), match.end(), masked=masked))
+    for match in _CARD_SOLID.finditer(text):
+        quote = match.group()
+        masked = not quote.isdigit()
+        if len(quote) != 16 or (not masked and not _luhn_valid(quote)):
             continue
-        add("url", match.start(), match.start() + len(quote))
+        found.append(_signal(text, "card_number", match.start(), match.end(), masked=masked))
+    return found
 
-    for match in _SMS_REQUEST.finditer(source_text):
-        prefix = source_text[max(0, match.start() - 40):match.start()]
-        if re.search(r"\b(?:не|нельзя|запрещено)\s*$", prefix, re.IGNORECASE):
+
+_URL = re.compile(r"(?<![\w@])(?:https?://|www\.)[^\s<>\"']+", re.IGNORECASE)
+# A bare domain needs a known TLD: without one, «т.е.» and «CDEK.Маркет» match.
+_TLDS = ("ru|рф|su|com|net|org|info|biz|io|me|ly|cc|co|to|gl|ws|xyz|top|site|"
+         "online|store|shop|app|link|click|pro|club|live|kz|by|ua|uz")
+_BARE_DOMAIN = re.compile(
+    rf"(?<![\w@./-])(?:[a-zа-яё0-9-]+\.)+(?:{_TLDS})(?![\w-])(?:/[^\s<>\"']*)?",
+    re.IGNORECASE,
+)
+
+
+def _host(url: str) -> str:
+    """Host part of a URL. Userinfo is dropped: in `bank.ru@evil.top` the host is evil.top."""
+    start = url.find("://")
+    start = 0 if start < 0 else start + 3
+    end = len(url)
+    for sep in "/?#":
+        pos = url.find(sep, start)
+        if pos != -1:
+            end = min(end, pos)
+    start = url.rfind("@", start, end) + 1 or start
+    colon = url.find(":", start, end)
+    return url[start:colon if colon != -1 else end]
+
+
+def find_links(text: str) -> list[dict[str, Any]]:
+    """Links with a scheme or `www.`, and bare domains with a known TLD.
+
+    Each result also carries `domain`. Reputation, redirects and what the
+    page shows are not checked: that needs the network.
+    """
+    found: list[dict[str, Any]] = []
+    for pattern in (_URL, _BARE_DOMAIN):
+        for match in pattern.finditer(text):
+            quote = match.group().rstrip(_TRAILING)
+            # A bare scheme is not a usable link.
+            if re.fullmatch(r"(?:https?://|www\.)", quote, re.IGNORECASE):
+                continue
+            end = match.start() + len(quote)
+            if _overlaps(match.start(), end, found):
+                continue  # a domain inside a link already found
+            found.append(_signal(text, "link", match.start(), end, domain=_host(quote)))
+    return found
+
+
+_ASK = (
+    r"(?:(?:пришли|присылай|сообщи|сообщай|отправь|отправляй|назови|называй|продиктуй|"
+    r"диктуй|перешли|пересылай|скинь|скажи|напиши|укажи|введи|вводи)(?:те)?|прислать|"
+    r"сообщить|сообщать|отправить|назвать|называть|продиктовать|диктовать|переслать|"
+    r"скинуть|сказать|написать|указать|ввести|вводить)"
+)
+_SECRET = (
+    r"(?:(?:смс|sms)[- ]?код\w{0,2}"
+    r"|код\w{0,2}\b[^.!?;\n]{0,40}?(?:\b(?:смс|sms|push|пуш)\b|\bсообщени\w*|\bподтвержд\w*"
+    r"|\bприш[её]л\w*|\bприд[её]т|\bприходит|\bпоступ\w*)"
+    r"(?:[^.!?;\n]{0,20}?\b(?:смс|sms)\b)?"  # stretch the quote to «в СМС» if it follows
+    r"|парол\w*|cvv2?|cvc2?|пин[- ]?код\w{0,2}|pin"
+    r"|код\w{0,2}\s+(?:с\s+)?(?:обратной|оборот)\w*"
+    r"|(?:три|3)\s+цифры\s+(?:с\s+)?(?:обратной|оборот)\w*)"
+)
+_SECRET_REQUEST = re.compile(
+    rf"\b(?P<ask>{_ASK})\b[^.!?;\n]{{0,60}}?\b{_SECRET}"
+    rf"|\b{_SECRET}[^.!?;\n]{{0,40}}?\b(?P<ask_after>{_ASK})\b",
+    re.IGNORECASE,
+)
+_NEGATION = re.compile(r"\b(?:не|нельзя|никогда|запрещено|запрещается)\b", re.IGNORECASE)
+
+
+def find_secret_requests(text: str) -> list[dict[str, Any]]:
+    """A request to tell, dictate, send or enter an SMS code, a password or CVV.
+
+    Both orders: «продиктуйте код из СМС» and «код из СМС продиктуйте». A bare
+    «код» counts only next to SMS/confirmation words, so «укажите код
+    региона» does not. Negated advice («никому не сообщайте код», «банк
+    никогда не просит назвать пароль») is skipped when the negation sits in
+    the same clause before the verb. Quoted speech is not understood.
+    """
+    found: list[dict[str, Any]] = []
+    for match in _SECRET_REQUEST.finditer(text):
+        verb = "ask" if match.group("ask") is not None else "ask_after"
+        clause = re.split(r"[.!?;,\n]", text[max(0, match.start(verb) - 30):match.start(verb)])[-1]
+        if _NEGATION.search(clause):
             continue
-        add("sms_code_request", match.start(), match.end())
+        found.append(_signal(text, "secret_request", match.start(), match.end()))
+    return found
 
-    for match in _NUMBER_RUN.finditer(source_text):
-        digits = re.sub(r"[ \u00a0-]", "", match.group())
-        context = source_text[max(0, match.start() - 40):match.start()]
-        if (13 <= len(digits) <= 19 and len(set(digits)) > 1
-                and re.search(r"\bкарт(?:а|ы|е|у|ой|ою)\b", context, re.IGNORECASE)
-                and _luhn_valid(digits)):
-            add("card_number_candidate", match.start(), match.end())
 
+_PHONE_RU = re.compile(
+    r"(?<![\w+*])(?:\+7|8)[  -]?\(?\d{3}\)?[  -]?\d{3}[  -]?\d{2}"
+    r"[  -]?\d{2}(?![\w*])"
+)
+_PHONE_INTL = re.compile(r"(?<![\w+])\+\d[\d  ()-]{8,18}\d(?![\w*])")
+
+
+def find_phone_numbers(text: str) -> list[dict[str, Any]]:
+    """Russian numbers (+7 / 8 and ten digits, any usual grouping) and +country numbers.
+
+    Masked numbers like `8 800 ***-**-**` are not matched: there is nothing
+    to call. Digits that belong to a card number are not reported twice.
+    """
+    found: list[dict[str, Any]] = []
+    taken = find_card_numbers(text)
+    for pattern in (_PHONE_RU, _PHONE_INTL):
+        for match in pattern.finditer(text):
+            digits = re.sub(r"\D", "", match.group())
+            if not 10 <= len(digits) <= 15 or _overlaps(match.start(), match.end(), taken + found):
+                continue
+            found.append(_signal(text, "phone_number", match.start(), match.end()))
+    return found
+
+
+# Latin letters that pass for Cyrillic ones, and the other way round.
+_HOMOGLYPHS = {
+    "LATIN": set("AaBCcEeHKkMOoPpTXxYy"),
+    "CYRILLIC": set("АаВСсЕеНКкМОоРрТХхУу"),
+}
+
+
+def _script(char: str) -> str | None:
+    if not char.isalpha():
+        return None
+    name = unicodedata.name(char, "")
+    return next((s for s in ("CYRILLIC", "LATIN", "GREEK") if name.startswith(s)), None)
+
+
+def _disguised(letters: list[tuple[str, str]], dominant: str | None) -> bool:
+    """One switch of script inside a word: a disguise or an honest compound?
+
+    «Bыплата», «БA3E»: the letters of one script are all look-alikes of the
+    other — a disguise. «СберPay»: a lowercase word then a capitalised one —
+    a brand compound. «ЮMoney»: «Ю» and «n» have no look-alikes — honest.
+    """
+    switch = next(i for i in range(1, len(letters)) if letters[i][1] != letters[i - 1][1])
+    if any(ch.islower() for ch, _ in letters[:switch]) and letters[switch][0].isupper():
+        return False
+    by_script: dict[str, list[str]] = {}
+    for char, script in letters:
+        by_script.setdefault(script, []).append(char)
+    for script, chars in by_script.items():
+        minority = len(chars) * 2 <= len(letters)
+        if ((script != dominant or minority)
+                and all(ch in _HOMOGLYPHS.get(script, ()) for ch in chars)):
+            return True
+    return False
+
+
+def find_mixed_script_words(text: str) -> list[dict[str, Any]]:
+    """Words that mix Cyrillic, Latin and Greek letters, the way spam filters are dodged.
+
+    Flagged: any Greek letter inside a mixed word («ΌБНΑРУЖЕΉ»), two or more
+    switches of script («ПEҎЕХОДИTЕ»), or a single switch where one side is
+    all look-alikes («БA3E»). Brand compounds like «СберPay» and «ЮMoney» are
+    not flagged. A whole word in a foreign script («Ɓ») is not a mixed word.
+    """
+    counts = Counter(s for s in map(_script, text) if s)
+    dominant = counts.most_common(1)[0][0] if counts else None
+    found: list[dict[str, Any]] = []
+    for match in re.finditer(r"\w+", text):
+        letters = [(ch, s) for ch in match.group() if (s := _script(ch))]
+        scripts = {s for _, s in letters}
+        if len(scripts) < 2:
+            continue
+        switches = sum(a[1] != b[1] for a, b in zip(letters, letters[1:]))
+        if "GREEK" in scripts or switches >= 2 or _disguised(letters, dominant):
+            found.append(_signal(text, "mixed_script", match.start(), match.end()))
+    return found
+
+
+_INN = re.compile(r"\bИНН(?:/КПП)?[\s:№#]*(\d+)", re.IGNORECASE)
+_INN_WEIGHTS = {
+    10: ([2, 4, 10, 3, 5, 9, 4, 6, 8],),
+    12: ([7, 2, 4, 10, 3, 5, 9, 4, 6, 8], [3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]),
+}
+
+
+def _inn_valid(digits: str) -> bool:
+    for weights in _INN_WEIGHTS[len(digits)]:
+        control = sum(int(d) * w for d, w in zip(digits, weights)) % 11 % 10
+        if control != int(digits[len(weights)]):
+            return False
+    return True
+
+
+def find_invalid_inns(text: str) -> list[dict[str, Any]]:
+    """An ИНН that cannot exist: wrong length or a failed control digit.
+
+    A company has 10 digits, a sole trader or a person 12, and the last one
+    or two digits are a checksum. «ИНН71384592» (8 digits) from a fake
+    receipt is caught; a valid ИНН is not reported, because a valid number
+    proves nothing about who sent the message.
+    """
+    found: list[dict[str, Any]] = []
+    for match in _INN.finditer(text):
+        digits = match.group(1)
+        if len(digits) not in _INN_WEIGHTS:
+            reason = f"{len(digits)} цифр, а у юрлица 10, у ИП и физлица 12"
+        elif not _inn_valid(digits):
+            reason = "не сходится контрольная сумма"
+        else:
+            continue
+        found.append(_signal(text, "invalid_inn", match.start(), match.end(), reason=reason))
+    return found
+
+
+_DETECTORS = (find_card_numbers, find_links, find_secret_requests, find_phone_numbers,
+              find_mixed_script_words, find_invalid_inns)
+
+
+def find_mechanical_signals(source_text: str) -> list[dict[str, Any]]:
+    """All detectors at once, sorted by position.
+
+    Every result has kind, quote, start and end, and quote == text[start:end].
+    Kinds: card_number, link, secret_request, phone_number, mixed_script,
+    invalid_inn. Extra keys: `masked` (card), `domain` (link), `reason` (ИНН).
+    """
+    signals = [signal for detect in _DETECTORS for signal in detect(source_text)]
     return sorted(signals, key=lambda signal: (signal["start"], signal["kind"]))
+
+
+if __name__ == "__main__":
+    import json
+    from pathlib import Path
+
+    def kinds(text: str) -> list[tuple[str, str]]:
+        return [(s["kind"], s["quote"]) for s in find_mechanical_signals(text)]
+
+    checked = 0
+
+    def expect(actual: Any, wanted: Any) -> None:
+        global checked
+        assert actual == wanted, f"\n  got:    {actual!r}\n  wanted: {wanted!r}"
+        checked += 1
+
+    # Cards: grouped, masked, solid with Luhn; not three groups, not a last-four mention.
+    expect(kinds("переведи на эту карту 2202 **** 4411"), [("card_number", "2202 **** 4411")])
+    expect(kinds("карта 2202-2063-1234-5676."), [("card_number", "2202-2063-1234-5676")])
+    expect(kinds("номер 4276380012345679 сбер"), [("card_number", "4276380012345679")])
+    expect(kinds("заказ 4276380012345671"), [])  # 16 digits, Luhn fails: an order number
+    expect(kinds("220220******4411"), [("card_number", "220220******4411")])
+    expect(kinds("Покупка по карте *4411, 899 руб."), [])
+    expect(kinds("код 2202 2063 4411"), [])
+
+    # Links: scheme, www, bare domain with a known TLD; userinfo does not hide the host.
+    expect(kinds("оплатите доставку по ссылке: prize-delivery-ru.top"),
+           [("link", "prize-delivery-ru.top")])
+    expect(kinds("Забрать промо http://примерссылки.ru."), [("link", "http://примерссылки.ru")])
+    expect([s["domain"] for s in find_links("вход: https://sberbank.ru@evil.top/login?x=1")],
+           ["evil.top"])
+    expect(kinds("т.е. CDEK.Маркет, почта ivan@mail.ru"), [])
+
+    # Requests for a secret, both orders; negated advice is not a request.
+    expect(kinds("Для отмены продиктуйте код из СМС оператору."),
+           [("secret_request", "продиктуйте код из СМС")])
+    expect(kinds("Подтвердите владение: введите код, который придёт вам в СМС, на странице"),
+           [("secret_request", "введите код, который придёт вам в СМС")])
+    expect(kinds("Код из СМС назовите оператору"), [("secret_request", "Код из СМС назовите")])
+    expect(kinds("Сообщите CVV с обратной стороны карты"), [("secret_request", "Сообщите CVV")])
+    expect(kinds("Ваш код: 4821. Никому не сообщайте этот код, даже сотрудникам банка."), [])
+    expect(kinds("Сотрудники банка никогда не просят сообщить код из СМС."), [])
+    expect(kinds("Пароль от Wi-Fi в офисе поменяли. Укажите код региона."), [])
+
+    # Phones, Russian and foreign; masked numbers are not callable.
+    expect(kinds("звоните +7 (916) 123-45-67 или 8 800 555-35-35"),
+           [("phone_number", "+7 (916) 123-45-67"), ("phone_number", "8 800 555-35-35")])
+    expect(kinds("WhatsApp +375 29 123 45 67"), [("phone_number", "+375 29 123 45 67")])
+    expect(kinds("позвоните по номеру 8 800 ***-**-** для отмены"), [])
+
+    # Mixed scripts: disguises yes, brand compounds no.
+    expect(kinds("Bыплата одобрена"), [("mixed_script", "Bыплата")])
+    expect(kinds("карта, ЮMoney и СберPay. Wi-Fi, iPhone 17"), [])
+
+    # ИНН: wrong length, bad checksum; valid ones are silent.
+    expect(kinds("ИНН 7707083893, ИНН/КПП 500100732259/770701001"), [])
+    expect(kinds("ИНН: 7707083894"), [("invalid_inn", "ИНН: 7707083894")])
+
+    # A real message: r-соня-01, a fake WildBerries receipt.
+    real = Path(__file__).resolve().parent.parent / "evals" / "real" / "соня.jsonl"
+    case = next(json.loads(line) for line in real.open(encoding="utf-8")
+                if json.loads(line)["id"] == "r-соня-01")
+    signals = find_mechanical_signals(case["text"])
+    for s in signals:
+        expect(case["text"][s["start"]:s["end"]], s["quote"])
+    expect([s["quote"] for s in signals if s["kind"] != "mixed_script"],
+           ["ИНН71384592", "http://примерссылки.ru"])
+    expect([s["reason"] for s in signals if s["kind"] == "invalid_inn"],
+           ["8 цифр, а у юрлица 10, у ИП и физлица 12"])
+    expect([s["quote"] for s in signals if s["kind"] == "mixed_script"],
+           ["ΌБНΑРУЖЕΉ", "БA3E", "ДΌТАЦИΌНHЫХ", "ПEҎЕХОДИTЕ", "ПРOВЕΡКЕ"])
+
+    print(f"core.verify: {checked} checks passed\n")
+    print(f"{case['id']}: {len(signals)} signals")
+    for s in signals:
+        extra = s.get("domain") or s.get("reason") or ""
+        print(f"  {s['start']:>4}-{s['end']:<4} {s['kind']:<13} {s['quote']!r}"
+              + (f"  ({extra})" if extra else ""))
