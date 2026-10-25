@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Второе мнение">
-  <!-- Б. «Лупа над кавычками»: показываем улики, а не угадываем -->
-  <circle cx="50" cy="50" r="34" fill="#81D8D0" stroke="#1d1b18" stroke-width="6"/>
-  <path d="M75 75l30 30" stroke="#1d1b18" stroke-width="12" stroke-linecap="round"/>
-  <text x="50" y="68" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-        font-size="54" font-weight="700" fill="#1d1b18">«»</text>
-</svg>

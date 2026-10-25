@@ -258,26 +258,10 @@
   .verka[data-state="doubt"] .s-doubt { display:inline; }
   .verka-say { display:inline-block; margin:var(--s1) 0 0; padding:6px 12px; border-radius:10px;
                background:var(--field); border:1px solid var(--line); font:500 13px/1.4 var(--mono); }
-  .verka .head { transform-box:view-box; transform-origin:110px 150px; }
-  .verka[data-state="checking"] .head { animation:scan 1.6s ease-in-out infinite; }
   .verka .eyes { transform-box:fill-box; transform-origin:center; animation:eyeblink 4s infinite; }
-  .verka .led { animation:blink 1.2s steps(1) infinite; }
-  .verka .thumb { transform-box:view-box; transform-origin:160px 190px; animation:bounce .9s ease-in-out infinite; }
-  .verka .sign-g { transform-box:view-box; transform-origin:160px 190px; animation:wave 1.1s ease-in-out infinite; }
-  .verka .qmark { animation:bounce 1.4s ease-in-out infinite; }
-  @keyframes scan { 0%,100% { transform:rotate(-8deg) translateX(-5px); } 50% { transform:rotate(8deg) translateX(5px); } }
   @keyframes eyeblink { 0%,92%,100% { transform:scaleY(1); } 95% { transform:scaleY(.1); } }
   @keyframes bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
-  @keyframes wave { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg); } }
-  /* v2: голова чуть поворачивается, «зрачки» бегают по линзам, строка сканирует рамку */
-  .verka .head2 { transform-box:view-box; transform-origin:100px 140px; }
-  .verka[data-state="checking"] .head2 { animation:scan2 2s ease-in-out infinite; }
-  .verka .lens-dot { animation:look 1.2s ease-in-out infinite; }
-  .verka .scan { animation:sweep 1.6s linear infinite; }
-  @keyframes scan2 { 0%,100% { transform:rotate(-3deg); } 50% { transform:rotate(3deg); } }
-  @keyframes look { 0%,100% { transform:translateX(-5px); } 50% { transform:translateX(5px); } }
-  @keyframes sweep { 0% { transform:translateY(0); } 100% { transform:translateY(128px); } }
-  /* v3: пиксельная — движения ступеньками по одному пикселю, как в старых играх */
+  /* пиксельная: движения ступеньками по одному пикселю, как в старых играх */
   .verka-svg.v3 { image-rendering:pixelated; }
   .verka .p-head, .verka .p-wave { transform-box:view-box; transform-origin:25px 28px; }
   .verka[data-state="checking"] .p-head { animation:pscan 1.2s steps(1) infinite; }
@@ -322,7 +306,7 @@
   .go-bar span.run { width:100%; transition:width 2.5s linear; }
   .pro { font-family:var(--mono); font-weight:800; }
   @media (prefers-reduced-motion: reduce) {
-    .verka *, .verka .scan, .reveal, .story-msg mark, .story-markers li, .home-steps li { animation:none !important; transition:none !important; }
+    .verka *, .reveal, .story-msg mark, .story-markers li, .home-steps li { animation:none !important; transition:none !important; }
   }
 
   /* технологии и партнёры на главной */
@@ -1376,138 +1360,9 @@ function route() {
 // 8. Аватар Verka. Одна SVG-картинка, все позы внутри; видимость — классами
 //    s-<состояние>, переключается атрибутом data-state (см. стили «аватар»).
 // ===================================================================
-const SKIN = "#f6dcc4", INK = "#1d1b18", SLEEVE = "#2c2925", TIFFANY = "#81D8D0";
-// v1 — мультяшная, в полный рост (до 25.10, 14:00). Оставлена, чтобы вернуться.
-const VERKA_SVG_V1 = `
-<svg class="verka-svg" viewBox="0 -60 220 320" aria-hidden="true">
-  <circle cx="110" cy="140" r="104" style="fill:var(--verka-bg)"/>
-  <text class="s s-doubt qmark" x="176" y="44" font-size="48" font-weight="800" fill="${TIFFANY}"
-        stroke="${INK}" stroke-width="2" font-family="system-ui, sans-serif">?</text>
-  <path d="M54 260 Q56 168 110 156 Q164 168 166 260 Z" fill="${SLEEVE}"/>
-  <path d="M92 158 L110 176 L128 158" fill="none" stroke="${TIFFANY}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="122" y="198" width="22" height="22" rx="5" fill="${INK}" stroke="${TIFFANY}" stroke-width="2"/>
-  <rect x="126" y="207" width="14" height="5" rx="1" fill="${TIFFANY}"/>
-  <rect x="100" y="132" width="20" height="26" fill="#ecc9ab"/>
-  <g class="s s-idle s-trust s-doubt s-distrust">
-    <path d="M68 178 Q56 212 62 236" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
-    <circle cx="62" cy="242" r="9" fill="${SKIN}"/>
-  </g>
-  <g class="s s-idle">
-    <path d="M152 178 Q164 212 158 236" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
-    <circle cx="158" cy="242" r="9" fill="${SKIN}"/>
-  </g>
-  <g class="head">
-    <path d="M56 92 Q56 36 110 34 Q164 36 164 92 L166 138 Q150 146 140 132 L80 132 Q70 146 54 138 Z" fill="${INK}"/>
-    <ellipse cx="110" cy="96" rx="42" ry="46" fill="${SKIN}"/>
-    <path d="M66 90 Q66 46 110 44 Q154 46 154 90 Q142 70 122 72 Q108 60 92 74 Q78 76 66 90 Z" fill="${INK}"/>
-    <path d="M80 62 Q88 53 101 50" stroke="${TIFFANY}" stroke-width="5" fill="none" stroke-linecap="round"/>
-    <circle cx="84" cy="114" r="6" fill="#f1a395" opacity=".45"/>
-    <circle cx="136" cy="114" r="6" fill="#f1a395" opacity=".45"/>
-    <g class="s s-idle s-doubt"><g class="eyes">
-      <ellipse cx="94" cy="100" rx="5" ry="7" fill="${INK}"/><ellipse cx="126" cy="100" rx="5" ry="7" fill="${INK}"/>
-      <circle cx="96" cy="97" r="1.8" fill="#fff"/><circle cx="128" cy="97" r="1.8" fill="#fff"/></g></g>
-    <path class="s s-trust" d="M87 102 Q94 92 101 102 M119 102 Q126 92 133 102" stroke="${INK}" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <g class="s s-distrust">
-      <ellipse cx="94" cy="102" rx="5" ry="6" fill="${INK}"/><ellipse cx="126" cy="102" rx="5" ry="6" fill="${INK}"/>
-      <path d="M84 87 L102 94 M136 87 L118 94" stroke="${INK}" stroke-width="4" stroke-linecap="round"/></g>
-    <path class="s s-idle" d="M102 121 Q110 127 118 121" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path class="s s-trust" d="M96 116 Q110 136 124 116 Z" fill="${INK}"/>
-    <ellipse class="s s-distrust" cx="110" cy="124" rx="7" ry="8" fill="${INK}"/>
-    <path class="s s-doubt" d="M101 124 Q110 119 119 123" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path class="s s-checking" d="M104 124 Q110 127 116 124" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path d="M58 96 A52 58 0 0 1 162 96" stroke="${TIFFANY}" stroke-width="6" fill="none"/>
-    <rect x="48" y="82" width="16" height="30" rx="7" fill="${TIFFANY}" stroke="${INK}" stroke-width="3"/>
-    <rect x="156" y="82" width="16" height="30" rx="7" fill="${TIFFANY}" stroke="${INK}" stroke-width="3"/>
-    <path d="M54 82 L44 56" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
-    <circle class="led" cx="43" cy="53" r="5" fill="${TIFFANY}" stroke="${INK}" stroke-width="2"/>
-    <path d="M56 110 Q60 134 88 133" stroke="${INK}" stroke-width="3" fill="none"/>
-    <circle cx="90" cy="133" r="3.5" fill="${INK}"/>
-    <g class="s s-checking">
-      <path d="M70 182 Q68 142 86 122 M150 182 Q152 142 134 122" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
-      <circle cx="88" cy="118" r="9" fill="${SKIN}"/><circle cx="132" cy="118" r="9" fill="${SKIN}"/>
-      <rect x="72" y="84" width="32" height="28" rx="9" fill="${INK}"/><rect x="116" y="84" width="32" height="28" rx="9" fill="${INK}"/>
-      <rect x="102" y="91" width="16" height="10" rx="3" fill="${INK}"/>
-      <circle cx="88" cy="98" r="10" fill="${TIFFANY}"/><circle cx="132" cy="98" r="10" fill="${TIFFANY}"/>
-      <circle cx="84" cy="94" r="3" fill="#fff"/><circle cx="128" cy="94" r="3" fill="#fff"/>
-    </g>
-  </g>
-  <g class="s s-doubt">
-    <path d="M152 180 Q150 150 126 142" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
-    <circle cx="120" cy="139" r="10" fill="${SKIN}"/>
-  </g>
-  <g class="s s-trust"><g class="thumb">
-    <path d="M152 178 Q176 152 176 126" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
-    <circle cx="176" cy="116" r="12" fill="${SKIN}"/>
-    <rect x="171" y="90" width="10" height="20" rx="5" fill="${SKIN}"/>
-    <path d="M194 92 l7 -7 M198 108 l9 0" stroke="${TIFFANY}" stroke-width="3" stroke-linecap="round"/>
-  </g></g>
-  <g class="s s-distrust"><g class="sign-g">
-    <path d="M172 100 L146 4" stroke="#8a6a44" stroke-width="7" stroke-linecap="round"/>
-    <rect x="22" y="-54" width="176" height="60" rx="8" fill="#fbf8f2" stroke="${INK}" stroke-width="4"/>
-    <text x="110" y="-16" text-anchor="middle" font-size="21" font-weight="800" fill="#b23a2e"
-          font-family="system-ui, sans-serif">Галя, отмена!</text>
-    <path d="M154 180 Q174 144 172 108" stroke="${SLEEVE}" stroke-width="18" fill="none" stroke-linecap="round"/>
-    <circle cx="172" cy="100" r="11" fill="${SKIN}"/>
-  </g></g>
-</svg>`;
-
-// v2 — голова и плечи, минималистично и «цифрово»: глаза-индикаторы, рамка
-// фокуса, сканер вместо бинокля. Рук в кадре нет, поэтому «класс» — значок,
-// а табличка — на древке, уходящем за край кадра.
-const VERKA_SVG_V2 = `
-<svg class="verka-svg v2" viewBox="0 -44 200 244" aria-hidden="true">
-  <circle cx="100" cy="100" r="92" style="fill:var(--verka-bg)"/>
-  <g class="s s-distrust"><g class="sign-g">
-    <path d="M150 200 L138 -6" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
-    <rect x="24" y="-40" width="152" height="36" rx="4" fill="#fbf8f2" stroke="${INK}" stroke-width="2.5"/>
-    <text x="100" y="-16" text-anchor="middle" font-size="16" font-weight="800" fill="#b23a2e"
-          font-family="ui-monospace, Consolas, monospace">Галя, отмена!</text>
-  </g></g>
-  <path d="M30 200 Q32 152 100 144 Q168 152 170 200 Z" style="fill:var(--verka-hair)"/>
-  <path d="M80 150 L100 166 L120 150" fill="none" stroke="${TIFFANY}" stroke-width="2"/>
-  <rect x="91" y="116" width="18" height="32" fill="#e3c4aa"/>
-  <g class="head2">
-    <path d="M54 130 L54 72 Q54 30 100 28 Q146 30 146 72 L146 130 L128 130 L128 96 L72 96 L72 130 Z" style="fill:var(--verka-hair)"/>
-    <rect x="64" y="42" width="72" height="82" rx="30" fill="#efd6c0"/>
-    <path d="M62 72 L66 46 Q100 22 134 46 L138 72 L120 58 L98 66 L80 56 Z" style="fill:var(--verka-hair)"/>
-    <path d="M68 62 L80 52 L96 60" fill="none" stroke="${TIFFANY}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <g class="s s-idle"><g class="eyes">
-      <rect x="80" y="79" width="14" height="6" rx="3" fill="${INK}"/><rect x="106" y="79" width="14" height="6" rx="3" fill="${INK}"/></g></g>
-    <path class="s s-idle" d="M94 104 L106 104" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
-    <path class="s s-trust" d="M80 85 Q87 77 94 85 M106 85 Q113 77 120 85" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path class="s s-trust" d="M91 100 Q100 109 109 100" stroke="${INK}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <path class="s s-distrust" d="M80 78 L94 84 M106 84 L120 78" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>
-    <rect class="s s-distrust" x="95" y="100" width="10" height="6" rx="2" fill="${INK}"/>
-    <g class="s s-doubt">
-      <rect x="80" y="81" width="14" height="4" rx="2" fill="${INK}"/><rect x="108" y="80" width="10" height="5" rx="2" fill="${INK}"/>
-      <path d="M106 71 L120 67" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M94 105 L107 102" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
-    </g>
-    <g class="s s-checking">
-      <rect x="76" y="73" width="22" height="16" rx="5" fill="${INK}" stroke="${TIFFANY}" stroke-width="2.5"/>
-      <rect x="102" y="73" width="22" height="16" rx="5" fill="${INK}" stroke="${TIFFANY}" stroke-width="2.5"/>
-      <path d="M98 81 L102 81" stroke="${TIFFANY}" stroke-width="2.5"/>
-      <g class="lens-dot"><circle cx="87" cy="81" r="3" fill="${TIFFANY}"/><circle cx="113" cy="81" r="3" fill="${TIFFANY}"/></g>
-      <path d="M95 104 L105 104" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
-    </g>
-    <path d="M58 76 A42 46 0 0 1 142 76" stroke="${TIFFANY}" stroke-width="3" fill="none"/>
-    <circle cx="58" cy="84" r="8" fill="${INK}" stroke="${TIFFANY}" stroke-width="2"/>
-    <circle class="led" cx="58" cy="84" r="2.5" fill="${TIFFANY}"/>
-    <path d="M58 92 Q62 108 84 108" stroke="${TIFFANY}" stroke-width="1.5" fill="none"/>
-  </g>
-  <path d="M40 18 L40 6 L52 6 M148 6 L160 6 L160 18 M160 128 L160 140 L148 140 M52 140 L40 140 L40 128"
-        fill="none" stroke="${TIFFANY}" stroke-width="2.5" stroke-linecap="square"/>
-  <rect class="s s-checking scan" x="40" y="10" width="120" height="2" fill="${TIFFANY}" opacity=".8"/>
-  <g class="s s-trust"><g class="thumb">
-    <circle cx="152" cy="122" r="17" fill="${TIFFANY}" stroke="${INK}" stroke-width="2"/>
-    <rect x="142" y="118" width="19" height="15" rx="4" fill="${INK}"/>
-    <rect x="143" y="104" width="7" height="18" rx="3.5" fill="${INK}"/>
-    <path d="M152 122.5 H160 M152 126.5 H160 M152 130.5 H160" stroke="${TIFFANY}" stroke-width="1.5"/>
-  </g></g>
-  <text class="s s-doubt qmark" x="150" y="40" font-size="30" font-weight="800" fill="${TIFFANY}"
-        stroke="${INK}" stroke-width="1.5" font-family="ui-monospace, Consolas, monospace">?</text>
-</svg>`;
-
+const SKIN = "#f6dcc4", INK = "#1d1b18", TIFFANY = "#81D8D0";
+// Прежние версии аватара (v1 — мультяшная в полный рост, v2 — голова и плечи)
+// удалены 25.10; обе целиком лежат в коммите 7507d55, если понадобится вернуть.
 // v3 — пиксельная голова по мотивам v1: без туловища, рук и гарнитуры,
 // крупные мультяшные глаза. Рисуется по сетке: каждая буква карты — пиксель.
 //   K — волосы (цвет темы), T — бирюза, S — кожа, s — тень кожи, . — пусто.
@@ -1608,10 +1463,7 @@ const VERKA_SVG_V3 = `
   ], 28, 1)}</g></g>
 </svg>`;
 
-// Какую Verka показывать: "v3" — пиксельная голова (сейчас), "v2" — голова и
-// плечи минималистично, "v1" — первая мультяшная в полный рост.
-const VERKA_STYLE = "v3";
-const VERKA_SVG = { v1: VERKA_SVG_V1, v2: VERKA_SVG_V2, v3: VERKA_SVG_V3 }[VERKA_STYLE];
+const VERKA_SVG = VERKA_SVG_V3;
 
 const SAY = {
   idle:     "Пришлите сообщение — посмотрю.",

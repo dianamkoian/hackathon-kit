@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Второе мнение">
-  <!-- Г. «Маркер»: строки текста, одна подсвечена — как цитата на экране -->
-  <rect x="8" y="8" width="104" height="104" rx="22" fill="#fbf8f2" stroke="#1d1b18" stroke-width="5"/>
-  <path d="M28 36h64" stroke="#1d1b18" stroke-width="6" stroke-linecap="round" opacity=".35"/>
-  <rect x="22" y="50" width="76" height="20" rx="4" fill="#81D8D0"/>
-  <path d="M28 60h64" stroke="#1d1b18" stroke-width="6" stroke-linecap="round"/>
-  <path d="M28 84h40" stroke="#1d1b18" stroke-width="6" stroke-linecap="round" opacity=".35"/>
-</svg>

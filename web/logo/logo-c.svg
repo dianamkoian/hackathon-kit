@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Второе мнение">
-  <!-- В. «Цифра 2 в реплике»: второе мнение одним знаком -->
-  <path d="M20 10h80a14 14 0 0 1 14 14v56a14 14 0 0 1-14 14H52l-24 18V94h-8A14 14 0 0 1 6 80V24a14 14 0 0 1 14-14z"
-        fill="#81D8D0" stroke="#1d1b18" stroke-width="5" stroke-linejoin="round"/>
-  <text x="60" y="80" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-        font-size="76" font-weight="700" fill="#1d1b18">2</text>
-</svg>

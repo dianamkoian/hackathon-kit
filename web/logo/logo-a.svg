@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Второе мнение">
-  <!-- А. «Две реплики»: первое мнение — контур, второе — заливка поверх -->
-  <path d="M14 22h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10H40l-16 14V72h-10A10 10 0 0 1 4 62V32a10 10 0 0 1 10-10z"
-        fill="none" stroke="#1d1b18" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M50 44h56a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10h-10v14L80 94H50a10 10 0 0 1-10-10V54a10 10 0 0 1 10-10z"
-        fill="#81D8D0" stroke="#1d1b18" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M62 69l9 9 18-19" fill="none" stroke="#1d1b18" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
