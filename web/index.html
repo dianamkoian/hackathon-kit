@@ -808,7 +808,38 @@ const BACKEND_LABEL = {
 };
 
 // Группы примеров по префиксу id в evals/cases_authenticity.jsonl.
-const SAMPLE_GROUPS = { s: "Схемы мошенников", l: "Обычные сообщения", b: "Спорные случаи", r: "Настоящие сообщения" };
+const SAMPLE_GROUPS = { s: "Схемы мошенников", n: "Новости и слухи", l: "Обычные сообщения",
+                        b: "Спорные случаи", r: "Настоящие сообщения" };
+
+// Новости и слухи в списке примеров: n01–n03 приходят из набора (/samples), эти
+// два — только для демо, в метрики не входят. Слух безобидный, источник — «говорят».
+const NEWS_EXAMPLES = [
+  { id: "n-demo-1", text: "Говорят, с 1 декабря в метро отменят бесплатные пересадки — сообщил знакомый из депо. Перешлите всем, пока не поздно!" },
+  { id: "n-demo-2", text: "По данным источника в мэрии, в субботу в городе на весь день отключат мобильный интернет." },
+];
+
+// Для примеров-новостей поиск показывается всегда. Сервер ставит его правилом
+// (C20), но не на каждом ответе модели — тогда экран собирает те же ссылки сам,
+// по тем же правилам, что domains/authenticity.py: первая фраза, без ссылок,
+// почты, телефонов и чисел длиннее трёх цифр.
+const SEARCH_NOISE = /https?:\/\/\S+|www\.\S+|\S+@\S+|\+?\d[\d\s()-]{6,}\d|\d{4,}/g;
+function newsSearchLinks(text) {
+  const first = text.trim().split(/(?<=[.!?…])\s|\n/)[0];
+  const query = first.replace(SEARCH_NOISE, " ").split(/\s+/).join(" ").slice(0, 100).trim();
+  if (!query) return [];
+  const q = encodeURIComponent(query);
+  return [{ title: "Найти в Яндексе", url: `https://yandex.ru/search/?text=${q}` },
+          { title: "Найти в Google Новостях", url: `https://news.google.com/search?q=${q}&hl=ru` }];
+}
+const NEWS_CHECK = {
+  id: "C20", action: "Найдите эту новость на сайтах двух известных СМИ или официального ведомства. Нет нигде: не пересылайте",
+  why: "Настоящую новость публикуют несколько редакций, слух живёт только в пересылках", time_sec: 60,
+};
+function ensureNewsSearch(text) {
+  const search = newsSearchLinks(text);
+  if ($("check").hidden) { renderCheck({ ...NEWS_CHECK, search }); return; }
+  if (!$("check-search").querySelector("a")) renderSearch($("check-search"), { search });  // сервер не прислал
+}
 
 // ===================================================================
 // 2. Клиент API: /healthz, /samples, /run, /run-audio. Формат — api/server.py.
@@ -1005,6 +1036,7 @@ function linkHover(msgEl, listEl) {
 }
 
 function renderCheck(check) {
+  renderSearch($("check-search"), null);                    // ссылки прошлой проверки не тащим
   // C00 — «проверка не нужна», блок не показываем.
   $("check").hidden = !check || check.id === "C00";
   if ($("check").hidden) return;
@@ -1642,6 +1674,7 @@ async function check() {
   try {
     state.lastResult = await api.run(text);
     render(state.lastResult, text);
+    if (state.newsPick) ensureNewsSearch(text);
     record(state.lastResult, text);
   } catch (err) {
     showError(...explainError(err));
@@ -1662,17 +1695,20 @@ async function boot() {
     $("mock-note").hidden = !mock;
 
     state.samples = await api.get("/samples");
-    const groups = {};
-    for (const s of state.samples) {
+    // Порядок групп в списке — как в SAMPLE_GROUPS, «Другие» в конце.
+    const groups = Object.fromEntries(Object.keys(SAMPLE_GROUPS).map((k) => [k, []]));
+    for (const s of [...state.samples, ...NEWS_EXAMPLES]) {
       const key = SAMPLE_GROUPS[s.id[0]] ? s.id[0] : "other";
       (groups[key] ||= []).push(s);
     }
     for (const [key, list] of Object.entries(groups)) {
+      if (!list.length) continue;
       const og = document.createElement("optgroup");
       og.label = SAMPLE_GROUPS[key] || "Другие";
       for (const s of list) {
         const opt = document.createElement("option");
         opt.value = s.text;
+        if (key === "n") opt.dataset.news = "1";
         opt.textContent = String(s.text).slice(0, 60) + (s.text.length > 60 ? "…" : "");
         og.append(opt);
       }
@@ -1687,11 +1723,13 @@ async function boot() {
 
 $("samples").addEventListener("change", (e) => {
   if (!e.target.value) return;
+  state.newsPick = !!e.target.selectedOptions[0].dataset.news;
   $("text").value = e.target.value;
   check();
 });
 $("go").addEventListener("click", check);
-$("text").addEventListener("input", () => { $("samples").value = ""; });
+// Текст правят руками — это уже своё сообщение, решает сервер.
+$("text").addEventListener("input", () => { $("samples").value = ""; state.newsPick = false; });
 $("text").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) check();
 });
