@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.pipeline import confidence_floor, run, run_baseline
+from core.profile import Profile, clarifying_question, missing_context
 from core.safeword import SafeWord, prompt_for
 from core.store import Store
 from core.providers import get_provider
@@ -44,6 +45,8 @@ _training = [json.loads(l) for l in (ROOT_TRAINING.read_text(encoding='utf-8').s
              if l.strip()] if ROOT_TRAINING.exists() else []
 # Контрольный вопрос — одна семья на демо. Аккаунтов нет и не нужно.
 _safeword: SafeWord | None = None
+# Личный контекст: только то, что человек ввёл сам, и только для подсказок.
+_profile = Profile()
 # Сервис обязан подняться, даже если модель настроена неверно. На площадке
 # не будет времени чинить окружение: пусть работают детекторы и честный отказ,
 # а не «сервер не стартовал». Деградация, а не падение.
@@ -55,6 +58,14 @@ except Exception as exc:  # noqa: BLE001 — любая беда с модель
     _provider_error = f"{type(exc).__name__}: {exc}"
     print(f"[server] модель недоступна ({_provider_error}); "
           f"работаем только на детекторах")
+
+
+class ProfileRequest(BaseModel):
+    people: list[dict] = []
+    employer: str = ""
+    bank: str = ""
+    services: list[str] = []
+    expecting: list[str] = []
 
 
 class SafeWordRequest(BaseModel):
@@ -115,6 +126,8 @@ def run_endpoint(req: RunRequest) -> dict:
                 "reason": quick["explanation"], "tier_used": "mechanical",
                 "product": present(quick),
                 "safeword": prompt_for(_safeword, quick.get("markers")),
+                "question": (lambda q: q.to_dict() if q else None)(
+                    clarifying_question(quick.get("markers"), req.text, _profile)),
                 "trace": {"task_id": "mechanical", "cost_usd": 0.0,
                           "model_latency_ms": 0.0, "wall_ms": 0.0, "models_used": [],
                           "steps": [{"node": "signals", "ok": True,
@@ -152,6 +165,8 @@ def run_endpoint(req: RunRequest) -> dict:
             "reason": fallback["explanation"],
             "tier_used": "mechanical", "product": present(fallback),
             "safeword": prompt_for(_safeword, fallback.get("markers")),
+            "question": (lambda q: q.to_dict() if q else None)(
+                clarifying_question(fallback.get("markers"), req.text, _profile)),
             "trace": {"task_id": "mechanical", "cost_usd": 0.0,
                       "model_latency_ms": 0.0, "wall_ms": 0.0, "models_used": [],
                       "steps": [{"node": "signals", "ok": True,
@@ -170,7 +185,9 @@ def run_endpoint(req: RunRequest) -> dict:
     data_markers = (result.data or {}).get("markers") if isinstance(result.data, dict) else None
     return {"arm": req.arm, "seen_before": seen_before,
             **result.to_dict(), "product": present(result.data),
-            "safeword": prompt_for(_safeword, data_markers)}
+            "safeword": prompt_for(_safeword, data_markers),
+            "question": (lambda q: q.to_dict() if q else None)(
+                clarifying_question(data_markers, req.text, _profile))}
 
 
 @app.post("/run-audio")
@@ -218,6 +235,24 @@ async def run_audio(file: UploadFile = File(...)) -> dict:
         "model": heard.model,
     }
     return body
+
+
+@app.post("/profile")
+def set_profile(req: ProfileRequest) -> dict:
+    """Что человек рассказал о себе: близкие, работа, банк, чего он ждёт.
+
+    Нужно для двух вещей: не задавать вопрос, ответ на который уже известен,
+    и делать подсказки конкретными. Никуда не уходит.
+    """
+    global _profile
+    _profile = Profile.from_dict(req.model_dump())
+    return {"ok": True, "profile": _profile.to_dict(),
+            "still_missing": missing_context(_profile)}
+
+
+@app.get("/profile")
+def get_profile() -> dict:
+    return {"profile": _profile.to_dict(), "still_missing": missing_context(_profile)}
 
 
 @app.post("/safeword")
