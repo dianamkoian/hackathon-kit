@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect x="0" y="0" width="1600" height="900" rx="0" fill="#F4F2EC"/>
+<rect x="64" y="57" width="35" height="35" rx="10" fill="#097467"/>
+<text x="72" y="62" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="25" font-weight="bold" fill="#FFFFFF">?</text>
+<text x="112" y="66" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="19" font-weight="bold" fill="#132C33">ВТОРОЕ МНЕНИЕ</text>
+<text x="1167" y="68" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="14" font-weight="normal" fill="#56676B">ПРОВЕРКА СООБЩЕНИЙ</text>
+<rect x="64" y="119" width="1472" height="1" rx="0" fill="#D7DED9"/>
+<text x="64" y="168" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="61" font-weight="bold" fill="#132C33">Когда сообщение</text>
+<text x="64" y="242" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="61" font-weight="bold" fill="#132C33">торопит, нужна пауза.</text>
+<text x="66" y="343" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="29" font-weight="normal" fill="#56676B">Показываем, что насторожило,</text>
+<text x="66" y="384" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="29" font-weight="normal" fill="#56676B">и предлагаем конкретный шаг</text>
+<text x="66" y="425" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="29" font-weight="normal" fill="#56676B">для проверки.</text>
+<rect x="64" y="501" width="640" height="75" rx="14" fill="#E4EAE4"/>
+<text x="85" y="518" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="22" font-weight="normal" fill="#132C33">Перед переводом денег, передачей кода</text>
+<text x="85" y="547" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="22" font-weight="normal" fill="#132C33">или переходом по подозрительной ссылке.</text>
+<rect x="830" y="153" width="706" height="466" rx="24" fill="#FFFFFF" stroke="#D7DED9"/>
+<text x="860" y="180" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#56676B">КАК ЭТО ПОМОГАЕТ · ПРИМЕР</text>
+<rect x="858" y="220" width="650" height="157" rx="14" fill="#F4F5F1"/>
+<text x="880" y="241" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="25" font-weight="normal" fill="#132C33">Мам, это я. Телефон сломался.</text>
+<rect x="875" y="279" width="490" height="34" rx="5" fill="#FFE8A4"/>
+<text x="880" y="282" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="27" font-weight="bold" fill="#132C33">Срочно переведи 15 000 руб.</text>
+<rect x="875" y="321" width="520" height="33" rx="5" fill="#FFE8A4"/>
+<text x="880" y="323" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="27" font-weight="bold" fill="#132C33">Не звони — потом объясню.</text>
+<text x="860" y="399" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="21" font-weight="normal" fill="#56676B">Срочность  /  Деньги  /  Отказ от звонка</text>
+<rect x="858" y="448" width="650" height="142" rx="15" fill="#097467"/>
+<text x="882" y="468" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#B9E6D9">СЛЕДУЮЩИЙ ШАГ</text>
+<text x="882" y="499" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#FFFFFF">Позвоните на прежний номер.</text>
+<text x="882" y="544" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="20" font-weight="normal" fill="#DAF0E9">Используйте контакт, который уже знаете.</text>
+<rect x="64" y="659" width="1472" height="1" rx="0" fill="#D7DED9"/>
+<text x="64" y="690" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#097467">01</text>
+<text x="64" y="725" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#132C33">Понятны основания</text>
+<text x="64" y="768" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="19" font-weight="normal" fill="#56676B">Признаки связаны с цитатами.</text>
+<text x="64" y="797" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="19" font-weight="normal" fill="#56676B">Можно увидеть, что вызвало сомнение.</text>
+<text x="576" y="690" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#097467">02</text>
+<text x="576" y="725" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#132C33">Есть следующий шаг</text>
+<text x="576" y="768" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="19" font-weight="normal" fill="#56676B">Конкретная проверка помогает</text>
+<text x="576" y="797" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="19" font-weight="normal" fill="#56676B">не действовать под давлением.</text>
+<text x="1088" y="690" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#097467">03</text>
+<text x="1088" y="725" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#132C33">Неопределённость видна</text>
+<text x="1088" y="768" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="19" font-weight="normal" fill="#56676B">Если проверка ответа не пройдена,</text>
+<text x="1088" y="797" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="19" font-weight="normal" fill="#56676B">система отказывается от вывода.</text>
+<text x="64" y="858" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="16" font-weight="normal" fill="#56676B">Подлинность отправителя и фактов не установлена. Сервис помогает выбрать проверку.</text>
+<text x="1374" y="858" dominant-baseline="hanging" font-family="Arial, sans-serif" font-size="14" font-weight="normal" fill="#56676B">ПРОТОТИП / 2026</text>
+</svg>
