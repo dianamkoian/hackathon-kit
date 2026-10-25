@@ -44,8 +44,14 @@ def section(text: str, name: str) -> str:
     if not match:
         return ""
     body = match.group(1).strip()
-    # Незаполненный шаблон не показываем как содержательный ответ.
-    return "" if body.startswith("⟨") else body
+    # Незаполненный шаблон и отписки вроде «ничего» — это пустота, а не
+    # содержание. Предупреждение, которое срабатывает впустую, перестают
+    # читать, и тогда оно не сработает в тот раз, когда нужно.
+    empty = {"", "-", "—", "нет", "ничего", "пока ничего", "всё идёт",
+             "все идет", "всё ок", "все ок", "n/a", "нету"}
+    if body.startswith("⟨") or body.strip(" .").casefold() in empty:
+        return ""
+    return body
 
 
 def pull() -> str:
