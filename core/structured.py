@@ -6,6 +6,7 @@ what gets fed back to the model, so their wording matters.
 """
 from __future__ import annotations
 
+import math
 from typing import Any
 
 _TYPES: dict[str, type | tuple[type, ...]] = {
@@ -21,6 +22,26 @@ _TYPES: dict[str, type | tuple[type, ...]] = {
 
 class StructuredError(RuntimeError):
     """Model never produced output matching the schema."""
+
+
+def _reject_constant(value: str):
+    raise ValueError(f"non-finite JSON number: {value}")
+
+
+def _finite_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"non-finite JSON number: {value}")
+    return number
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict:
+    result: dict = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key!r}")
+        result[key] = value
+    return result
 
 
 def extract_json(text: str) -> Any:
@@ -61,7 +82,10 @@ def extract_json(text: str) -> Any:
             if depth == 0:
                 candidate = text[start : i + 1]
                 try:
-                    return json.loads(candidate)
+                    return json.loads(
+                        candidate, parse_constant=_reject_constant,
+                        parse_float=_finite_float, object_pairs_hook=_unique_object,
+                    )
                 except json.JSONDecodeError as exc:
                     # Balanced braces but invalid JSON — a trailing comma, a
                     # single quote, an unescaped newline. Small models do this
@@ -71,12 +95,14 @@ def extract_json(text: str) -> Any:
                     raise StructuredError(
                         f"malformed JSON at line {exc.lineno} column {exc.colno}: {exc.msg}"
                     ) from exc
+                except ValueError as exc:
+                    raise StructuredError(f"malformed JSON: {exc}") from exc
 
     raise StructuredError("JSON value is not closed")
 
 
 def validate(instance: Any, schema: dict, path: str = "$") -> list[str]:
-    """Check a JSON Schema subset: type, required, properties, items, enum, minItems.
+    """Check type, required, properties, items, enum, minItems, minimum, maximum.
 
     Returns human-readable problems — they go straight back to the model.
     """
@@ -93,6 +119,14 @@ def validate(instance: Any, schema: dict, path: str = "$") -> list[str]:
             got = type(instance).__name__
             problems.append(f"{path}: expected {expected}, got {got}")
             return problems
+
+    if isinstance(instance, (int, float)) and not isinstance(instance, bool):
+        if isinstance(instance, float) and not math.isfinite(instance):
+            return [f"{path}: number must be finite"]
+        if "minimum" in schema and instance < schema["minimum"]:
+            problems.append(f"{path}: must be >= {schema['minimum']}")
+        if "maximum" in schema and instance > schema["maximum"]:
+            problems.append(f"{path}: must be <= {schema['maximum']}")
 
     if "enum" in schema and instance not in schema["enum"]:
         allowed = ", ".join(repr(v) for v in schema["enum"])

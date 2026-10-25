@@ -53,7 +53,7 @@ def check_quotes(data: Any, source_text: str, fields: tuple[str, ...]) -> list[s
     (fuzzy match, token overlap) is how a grounding check quietly stops
     grounding anything.
     """
-    if not fields or not source_text:
+    if not fields:
         return []
 
     haystack = _normalize(source_text)
@@ -87,7 +87,7 @@ _VERIFIER_SCHEMA = {
             },
         },
         "verdict": {"type": "string", "enum": ["pass", "fail"]},
-        "confidence": {"type": "number"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "reason": {"type": "string"},
     },
 }
@@ -215,3 +215,67 @@ def verify_with_model(provider, *, spec, fields: dict, data: Any, tier: str, tra
                    + ("" if getattr(spec, "omission_is_veto", False)
                       else f", уверенность снижена до {confidence:.2f}"))
     return passed, confidence, reason
+
+
+# Observable surface features, not a fraud verdict. The domain owner decides
+# how these are used; their presence must not automatically block a message.
+_URL = re.compile(r"(?<!\w)(?:https?://|www\.)[^\s<>\"']+", re.IGNORECASE)
+_SMS_REQUEST = re.compile(
+    r"\b(?:пришли(?:те)?|сообщи(?:те)?|отправь(?:те)?|назови(?:те)?|"
+    r"продиктуй(?:те)?|перешли(?:те)?|скинь(?:те)?)\b"
+    r"[^.!?;\n]{0,60}?\bкод(?:а|ы)?\b[^.!?;\n]{0,30}?\b(?:смс|sms)\b",
+    re.IGNORECASE,
+)
+_NUMBER_RUN = re.compile(r"(?<!\w)[0-9](?:[0-9 \u00a0-]*[0-9])?(?!\w)")
+
+
+def _luhn_valid(digits: str) -> bool:
+    total = 0
+    for i, char in enumerate(reversed(digits)):
+        value = int(char)
+        if i % 2:
+            value *= 2
+            if value > 9:
+                value -= 9
+        total += value
+    return total % 10 == 0
+
+
+def find_mechanical_signals(source_text: str) -> list[dict[str, Any]]:
+    """Find URL, explicit Russian SMS-code request and card-number candidates.
+
+    Every result contains kind, quote, start and end (Python string offsets).
+    Quotes are exact source slices; there are no network or model calls.
+    Card candidates require 13-19 ASCII digits, a Luhn checksum and a nearby
+    Russian card mention; this does NOT establish that a card exists.
+    URL reputation, quoted speech, intent and authenticity are not determined.
+    Unsupported/obfuscated spellings may be missed; no matches is not safety.
+    """
+    signals: list[dict[str, Any]] = []
+
+    def add(kind: str, start: int, end: int) -> None:
+        signals.append({"kind": kind, "quote": source_text[start:end],
+                        "start": start, "end": end})
+
+    for match in _URL.finditer(source_text):
+        quote = match.group().rstrip(".,!?;:)]}»")
+        # A bare scheme is not a usable URL signal.
+        if re.fullmatch(r"(?:https?://|www\.)", quote, re.IGNORECASE):
+            continue
+        add("url", match.start(), match.start() + len(quote))
+
+    for match in _SMS_REQUEST.finditer(source_text):
+        prefix = source_text[max(0, match.start() - 40):match.start()]
+        if re.search(r"\b(?:не|нельзя|запрещено)\s*$", prefix, re.IGNORECASE):
+            continue
+        add("sms_code_request", match.start(), match.end())
+
+    for match in _NUMBER_RUN.finditer(source_text):
+        digits = re.sub(r"[ \u00a0-]", "", match.group())
+        context = source_text[max(0, match.start() - 40):match.start()]
+        if (13 <= len(digits) <= 19 and len(set(digits)) > 1
+                and re.search(r"\bкарт(?:а|ы|е|у|ой|ою)\b", context, re.IGNORECASE)
+                and _luhn_valid(digits)):
+            add("card_number_candidate", match.start(), match.end())
+
+    return sorted(signals, key=lambda signal: (signal["start"], signal["kind"]))
