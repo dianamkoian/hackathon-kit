@@ -40,9 +40,11 @@
       const Tesseract = await loadTesseract();
       worker = await Tesseract.createWorker("rus+eng", 1, {
         logger: (m) => {
-          if (m.status === "recognizing text") {
-            state.textContent = `Распознаю текст… ${Math.round(m.progress * 100)}%`;
-          }
+          const pct = Math.round((m.progress || 0) * 100);
+          state.textContent = m.status === "recognizing text"
+            ? `Распознаю текст… ${pct}%`
+            // Первый раз качается словарь языков, это до полуминуты.
+            : `Распознаю текст… подготовка ${pct}% (в первый раз до 30 секунд)`;
         },
       });
       const { data } = await worker.recognize(image);
