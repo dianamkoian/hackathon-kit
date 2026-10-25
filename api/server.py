@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
@@ -97,6 +98,8 @@ def healthz() -> dict:
         "model_error": _provider_error,
         "spec": SPEC.name,
         "confidence_floor": confidence_floor(),
+        # Распознавание речи на сервере: только Мак с mlx-whisper. Модель не грузим.
+        "asr": importlib.util.find_spec("mlx_whisper") is not None,
     }
 
 
@@ -382,6 +385,11 @@ def stats() -> dict:
 def slides() -> FileResponse:
     """Колода для защиты по той же ссылке, что и демо."""
     return FileResponse(WEB_DIR / "slides.html")
+
+
+@app.get("/voice.js")
+def voice_js() -> FileResponse:
+    return FileResponse(WEB_DIR / "voice.js", media_type="text/javascript")
 
 
 @app.get("/ocr.js")
