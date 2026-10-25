@@ -361,6 +361,7 @@ _SIGNAL_TO_MARKER = {
     "urgency_phrase": "urgency",
     "new_contact_phrase": "new_contact",
     "too_good_phrase": "too_good",
+    "prize_phrase": "too_good",
     "spread_call": "spread_call",
     "suppression": "suppression",
     "requisites_change": "money_request",

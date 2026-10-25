@@ -516,6 +516,14 @@ _TOO_GOOD_PHRASE = re.compile(
     r"|(?:от|до)\s*\d[\d\s]{2,}\s*(?:р|руб|₽|тыс|к|\$|бакс\w*)?\s*(?:в|за)\s*"
     r"(?:день|час|сутки|неделю|смену|месяц)",
     re.IGNORECASE)
+# Выигрыш, за который надо заплатить. Нашла Соня: такое сообщение получало
+# «признаков не найдено», хотя это самая узнаваемая схема из всех.
+_PRIZE_PHRASE = re.compile(
+    r"(?:вы выиграли|ваш приз|вы победили|вам начислен\w+\s+(?:приз|выплат\w+|бонус\w*)"
+    r"|поздравля\w+[^.!?\n]{0,40}?(?:выигр\w+|приз|розыгрыш\w*))"
+    r"|(?:оплат\w+|внесите|переведите)[^.!?\n]{0,30}?"
+    r"(?:комисси\w+|налог|пошлин\w+|доставк\w+|страховк\w+)",
+    re.IGNORECASE)
 _NEW_CONTACT_PHRASE = re.compile(
     r"(?:(?:у меня |это мой )?новый номер|пишу с (?:другого|чужого|нового) "
     r"(?:номера|телефона)|нов(?:ый|ая) (?:аккаунт|сим|симка)|"
@@ -574,6 +582,7 @@ def _phrase_signals(text: str) -> list[dict[str, Any]]:
                           ("urgency_phrase", _URGENCY_PHRASE),
                           ("new_contact_phrase", _NEW_CONTACT_PHRASE),
                           ("too_good_phrase", _TOO_GOOD_PHRASE),
+                          ("prize_phrase", _PRIZE_PHRASE),
                           ("spread_call", _SPREAD_CALL),
                           ("suppression", _SUPPRESSION),
                           ("news_claim", _NEWS_CLAIM),
@@ -668,7 +677,8 @@ if __name__ == "__main__":
 
     # Links: scheme, www, bare domain with a known TLD; userinfo does not hide the host.
     expect(kinds("оплатите доставку по ссылке: prize-delivery-ru.top"),
-           [("link", "prize-delivery-ru.top")])
+           [("prize_phrase", "оплатите доставку"),
+            ("link", "prize-delivery-ru.top")])
     expect(kinds("Получить бонус http://примерссылки.ru."), [("link", "http://примерссылки.ru")])
     expect([s["domain"] for s in find_links("вход: https://sberbank.ru@evil.top/login?x=1")],
            ["evil.top"])
