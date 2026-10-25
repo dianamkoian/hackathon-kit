@@ -666,6 +666,7 @@
         <div class="message" id="quiz-marked" style="border-top:none"></div>
         <ul class="markers" id="quiz-markers"></ul>
         <p class="note" id="quiz-check"></p>
+        <div class="row" id="quiz-search" hidden></div>
         <div class="row"><button type="button" class="btn primary" id="quiz-next">Дальше</button></div>
       </div>
     </div>
@@ -1011,14 +1012,19 @@ function renderCheck(check) {
   $("check-why").textContent = check.why || "";
   $("check-time").textContent = humanTime(check.time_sec);
   $("check-time").hidden = !check.time_sec;
-  // Кнопки поиска (пока только у C20, «новость без источника»): ищет сам человек
-  // на своём устройстве, Verka ничего не утверждает о правдивости. Только https.
-  const links = (check.search || []).filter((s) => /^https:\/\//.test(s.url || ""));
-  $("check-search").innerHTML = links.map((s) =>
-    `<a class="btn" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join("");
-  $("check-search").hidden = !links.length;
+  renderSearch($("check-search"), check);
   $("outcome").hidden = true;
   $("choices").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false"));
+}
+
+// Кнопки поиска (пока только у C20, «новость без источника»): ищет сам человек
+// на своём устройстве, Verka ничего не утверждает о правдивости. Только https.
+// Общая для Проверки и Тренировки, чтобы они не расходились.
+function renderSearch(el, check) {
+  const links = ((check && check.search) || []).filter((s) => /^https:\/\//.test(s.url || ""));
+  el.innerHTML = links.map((s) =>
+    `<a class="btn" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`).join("");
+  el.hidden = !links.length;
 }
 
 // Барьеры — списком, как отчёт VirusTotal по движкам: видно, кто что сказал.
@@ -1205,6 +1211,7 @@ async function quizAnswer(btn) {
     b.disabled = true; b.setAttribute("aria-pressed", String(b === btn));
   });
   $("quiz-marked").hidden = true; $("quiz-markers").innerHTML = ""; $("quiz-check").textContent = "";
+  $("quiz-search").hidden = true; $("quiz-search").innerHTML = "";
   $("quiz-next").textContent = quiz.i + 1 < quiz.items.length ? "Дальше" : "Итог";
   const truth = item.expected_assessment;
   if (truth) {
@@ -1250,9 +1257,12 @@ async function quizEvidence() {
   const markers = (body.data && body.data.markers) || [];
   renderMessage(item.text, markers, body.answered, $("quiz-marked"), $("quiz-markers"), null);
   $("quiz-marked").hidden = !markers.length;
+  // Проверку показываем всегда, когда она есть: у слуха без приёмов (C20) она и есть ответ.
   const check = (body.product || {}).check;
-  $("quiz-check").textContent = !markers.length ? "Verka приёмов манипуляции не нашла."
-    : check && check.id !== "C00" ? `Как проверить: ${check.action}` : "";
+  const hasCheck = check && check.id !== "C00";
+  $("quiz-check").textContent = hasCheck ? `Как проверить: ${check.action}`
+    : !markers.length ? "Verka приёмов манипуляции не нашла." : "";
+  renderSearch($("quiz-search"), hasCheck ? check : null);
   return body;
 }
 
